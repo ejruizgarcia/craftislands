@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -143,6 +143,21 @@
             font-size: 16px;
         }
 
+        /* Disclaimer */
+        #disclaimer {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            text-shadow: 1px 1px 3px black;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 1;
+            transition: opacity 2s ease-in-out;
+        }
+
         /* UI Modals */
         .modal-overlay {
             position: absolute;
@@ -259,6 +274,7 @@
     
     <div id="interactionText">Interact</div>
     <div id="zoneTitle"></div>
+    <div id="disclaimer">Application created with Gemini AI by @ejruizgarcia, licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.</div>
 
     <div id="blocker">
         <div id="instructions">
@@ -266,7 +282,8 @@
             <p style="font-size: 18px; line-height: 1.5;">Welcome to the interactive game of the mysterious islands.</p>
             <p style="font-size: 16px; color: #ccc;">Controls:<br>
             W, A, S, D to move | Click to interact<br>
-            Hold R to sprint | Space to jump</p>
+            Hold R to sprint | Space to jump<br>
+            ALT + M = Screenshot | CTRL + M = Mute</p>
         </div>
     </div>
     <div id="crosshair"></div>
@@ -490,8 +507,6 @@
             AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, SNOW: 4, SAND: 5, LAVA: 6, WATER: 7, 
             WOOD: 8, LEAVES: 9, CACTUS: 10, FLOWER: 11, STEM: 12, TORCH: 13, PLANK: 14, GOLD: 15
         };
-
-        const INVISIBLE_BARRIER = 99; 
 
         function createTexture(hex, type) {
             const canvas = document.createElement('canvas');
@@ -811,6 +826,15 @@
                 initSplashParticles(); 
                 finalizeInit();
                 document.getElementById('loading').style.display = 'none';
+                
+                // Ocultar el aviso legal pasados 5 segundos
+                setTimeout(() => {
+                    const disclaimer = document.getElementById('disclaimer');
+                    if (disclaimer) {
+                        disclaimer.style.opacity = '0';
+                    }
+                }, 5000);
+
             }, 100);
         }
 
@@ -839,7 +863,7 @@
                 toggleMute();
             });
 
-            instructions.addEventListener('click', function () { 
+            instructions.addEventListener('click', function (event) { 
                 if (isFirstStart) {
                     isFirstStart = false;
                     document.getElementById('gameTitle').innerText = "Game Paused";
@@ -915,6 +939,16 @@
                     }
                 }
 
+                if (event.altKey && (event.code === 'KeyM' || event.key === 'm' || event.key === 'M')) {
+                    event.preventDefault();
+                    renderer.render(scene, camera);
+                    const link = document.createElement('a');
+                    link.download = 'captura_craft_islands.png';
+                    link.href = renderer.domElement.toDataURL('image/png');
+                    link.click();
+                    return;
+                }
+
                 switch (event.code) {
                     case 'ArrowUp': case 'KeyW': moveForward = true; break;
                     case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
@@ -959,7 +993,7 @@
             if(data.type === 'door') {
                 const zone = zones[data.zone];
                 if(zone.locked) {
-                    // Flash text
+                    
                 } else {
                     zone.door.targetRot = zone.door.targetRot === zone.door.baseRot ? zone.door.openRot : zone.door.baseRot;
                 }
@@ -1242,16 +1276,6 @@
             blockData[type].push({x, y, z, color: colorHex});
         }
 
-        function fillInvisibleCollisionBox(minX, maxX, minY, maxY, minZ, maxZ) {
-            for(let x=minX; x<=maxX; x++) {
-                for(let y=minY; y<=maxY; y++) {
-                    for(let z=minZ; z<=maxZ; z++) {
-                        blocksMap.set(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`, INVISIBLE_BARRIER);
-                    }
-                }
-            }
-        }
-
         function getSmoothTerrainHeight(x, z, originalHeight) {
             const clearings = [
                 {cx: 175, cz: 100, r: 16, blend: 10, h: 3},   
@@ -1337,7 +1361,7 @@
             const caveCenter = {x: 270, y: 4, z: 120}; 
 
             for(let x=200; x<=400; x++) {
-                for(let z=0; z<=200; z++) {
+                for(let z=200; z<=200; z++) {
                     const dist = Math.sqrt((x-300)**2 + (z-100)**2);
                     if(dist < islandRadius) {
                         let rawHeight = 2;
@@ -1623,11 +1647,9 @@
 
             createControlledDoor(cx - 2, cy + 0.1, cz + 5.5, 4, 4.8, 2, 0, 0, Math.PI / 1.5, 1);
             
-            createInteractable(new THREE.BoxGeometry(1.5, 1, 1), new THREE.MeshLambertMaterial({color:0x3e2723}), cx+3, cy+0.5, cz-3, {type:'desk', zone:1});
-            createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x8b0000}), cx+3, cy+1.1, cz-3, {type:'book', zone:1});
+            createInteractable(new THREE.BoxGeometry(1.5, 1.2, 1.0), new THREE.MeshLambertMaterial({color:0x3e2723}), cx+3, cy+0.6, cz-3, {type:'desk', zone:1});
+            createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x8b0000}), cx+3, cy+1.3, cz-3, {type:'book', zone:1});
             createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx-4.8, cy+2.5, cz, {type:'lever', zone:1});
-
-            fillInvisibleCollisionBox(cx-4, cx+0, cy+5, cy+6, cz+5, cz+6);
         }
 
         // ZONE 2: Shipwreck (Block 2)
@@ -1636,40 +1658,41 @@
             const l = TYPES.WOOD;
 
             for(let y=0; y<=8; y++) {
-                for(let dx=-5; dx<=5; dx++) {
-                    for(let dz=-18; dz<=15; dz++) {
+                for(let dx=-4; dx<=4; dx++) {
+                    for(let dz=-14; dz<=3; dz++) {
                         let isBlock = false;
+                        
+                        let width = 4;
+                        let maxHeight = 3; 
 
-                        if (dz < 4) {
-                            if (y === 0 && Math.abs(dx) <= 1 && dz >= -10) isBlock = true;
-                            if (y === 1 && Math.abs(dx) <= 2 && dz >= -12) isBlock = true;
-                            if (y === 2 && Math.abs(dx) <= 3 && dz >= -14) isBlock = true;
-                            if (y === 3 && Math.abs(dx) <= 4 && dz >= -15) isBlock = true;
-                            if (y === 4 && Math.abs(dx) <= 4 && dz >= -15) isBlock = true; 
-
-                            if (dz < -15) {
-                                if (dz === -16 && Math.abs(dx) <= 2 && y >= 4 && y <= 5) isBlock = true;
-                                if (dz === -17 && Math.abs(dx) <= 1 && y >= 5 && y <= 6) isBlock = true;
-                                if (dz === -18 && Math.abs(dx) === 0 && y >= 6 && y <= 7) isBlock = true;
-                            }
-
-                            if (y >= 1 && y <= 4 && dz >= -14 && dz <= 3) {
-                                if (Math.abs(dx) <= 3) isBlock = false;
-                            }
-
-                            if (y === 3 && Math.abs(dx) <= 3 && dz >= -14 && dz <= 3) isBlock = true;
-                            if (y === 5 && Math.abs(dx) === 4 && dz >= -14 && dz <= 3) isBlock = true;
-                            if (isBlock && Math.random() < 0.08 && y >= 2 && y <= 5 && Math.abs(dx) >= 3) isBlock = false;
+                        if (dz === -6 || dz === -7) {
+                            width = 3;
+                            maxHeight = 4;
+                        } else if (dz === -8 || dz === -9) {
+                            width = 2;
+                            maxHeight = 5;
+                        } else if (dz === -10 || dz === -11) {
+                            width = 1;
+                            maxHeight = 6;
+                        } else if (dz <= -12) {
+                            width = 0;
+                            maxHeight = 7;
                         }
 
-                        if (dz >= 4 && dz <= 12) {
-                            if (y === 0 && Math.abs(dx) <= 4) isBlock = true;
-                            if (y === 5 && Math.abs(dx) <= 4) isBlock = true;
-                            if (y >= 1 && y <= 4 && Math.abs(dx) <= 3 && dz < 12) isBlock = false; 
-                            if (y >= 1 && y <= 4 && Math.abs(dx) === 4) isBlock = true; 
-                            if (y >= 1 && y <= 4 && dz === 12 && Math.abs(dx) <= 4) isBlock = true; 
-                            if (y >= 1 && y <= 4 && dz === 4 && Math.abs(dx) <= 3) isBlock = true;
-                            if (dz === 12 && (dx === 0 || dx === -1) && y >= 1 && y <= 3) isBlock = false;
+                        if (Math.abs(dx) <= width && y <= maxHeight) {
+                            isBlock = true;
+                        }
+
+                        if (y > 1 && y < maxHeight && Math.abs(dx) < width) {
+                            isBlock = false; 
+                        }
+
+                        if (dz >= -5 && dz <= 3 && y === 4 && Math.abs(dx) === width) {
+                            isBlock = true; 
+                        }
+
+                        if (isBlock && Math.random() > 0.92 && y >= 2 && Math.abs(dx) >= width - 1) {
+                            isBlock = false;
                         }
 
                         if (isBlock) addBlock(cx+dx, cy+y, cz+dz, p);
@@ -1677,26 +1700,47 @@
                 }
             }
 
-            for(let i=0; i<=4; i++) addBlock(cx, cy+6+i, cz-16-i, l);
+            for (let y = 0; y <= 5; y++) {
+                for (let dx = -4; dx <= 4; dx++) {
+                    for (let dz = 4; dz <= 12; dz++) {
+                        let isBlock = false;
+                        if (y === 0 && Math.abs(dx) <= 4) isBlock = true; 
+                        if (y === 5 && Math.abs(dx) <= 4) isBlock = true; 
+                        if (y >= 1 && y <= 4 && Math.abs(dx) === 4) isBlock = true; 
+                        if (y >= 1 && y <= 4 && dz === 12 && Math.abs(dx) <= 4) isBlock = true; 
+                        if (y >= 1 && y <= 4 && dz === 4 && Math.abs(dx) <= 3) isBlock = true; 
+                        
+                        if (dz === 12 && (dx === 0 || dx === -1) && y >= 1 && y <= 3) isBlock = false;
 
-            for(let y=3; y<=14; y++) addBlock(cx, cy+y, cz-8, l);
-            for(let dx=-3; dx<=3; dx++) if(dx !== 0) addBlock(cx+dx, cy+8, cz-8, l);
-            for(let dx=-2; dx<=2; dx++) if(dx !== 0) addBlock(cx+dx, cy+12, cz-8, l);
+                        if (isBlock) addBlock(cx+dx, cy+y, cz+dz, p);
+                    }
+                }
+            }
 
-            for(let y=4; y<=18; y++) addBlock(cx, cy+y, cz+1, l);
-            for(let dx=-4; dx<=4; dx++) if(dx !== 0) addBlock(cx+dx, cy+10, cz+1, l);
-            for(let dx=-3; dx<=3; dx++) if(dx !== 0) addBlock(cx+dx, cy+15, cz+1, l);
+            for(let y=2; y<=12; y++) addBlock(cx, cy+y, cz-8, l);
+            for(let dx=-3; dx<=3; dx++) addBlock(cx+dx, cy+11, cz-8, l);
 
-            for(let y=6; y<=16; y++) addBlock(cx, cy+y, cz+8, l);
-            for(let dx=-3; dx<=3; dx++) if(dx !== 0) addBlock(cx+dx, cy+12, cz+8, l);
+            for(let y=2; y<=16; y++) addBlock(cx, cy+y, cz-1, l);
+            for(let dx=-4; dx<=4; dx++) addBlock(cx+dx, cy+15, cz-1, l);
+
+            for(let y=6; y<=14; y++) addBlock(cx, cy+y, cz+7, l);
+            for(let dx=-3; dx<=3; dx++) addBlock(cx+dx, cy+13, cz+7, l);
+
+            let bz = -12;
+            let by = 5;
+            for (let i = 0; i < 3; i++) {
+                bz--; addBlock(cx, cy+by, cz+bz, l);
+                bz--; addBlock(cx, cy+by, cz+bz, l);
+                by++;
+                if (i < 2) addBlock(cx, cy+by, cz+bz, l);
+            }
 
             createControlledDoor(cx-1.5, cy+0.5, cz+12.2, 2, 3, 1, 0, 0, Math.PI / 1.5, 2);
 
-            createInteractable(new THREE.BoxGeometry(1, 1, 2), new THREE.MeshLambertMaterial({color:0x3e2723}), cx+2, cy+1.0, cz+8, {type:'desk', zone:2});
-            createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x00008b}), cx+2, cy+1.6, cz+8, {type:'book', zone:2});
+            createInteractable(new THREE.BoxGeometry(1.2, 1.4, 2.2), new THREE.MeshLambertMaterial({color:0x5c4033}), cx+2, cy+0.7, cz+8, {type:'desk', zone:2});
+            createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x00008b}), cx+2, cy+1.5, cz+8, {type:'book', zone:2});
             createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx-3.4, cy+2.0, cz+9, {type:'lever', zone:2});
 
-            fillInvisibleCollisionBox(cx - 2, cx + 0, cy + 4, cy + 6, cz + 11, cz + 13); 
         }
 
         // ZONE 3: Hindu Temple (Block 3)
@@ -1704,7 +1748,6 @@
             const s1 = TYPES.SAND;
             const s2 = TYPES.DIRT; 
             
-            // Base escalonada inferior
             for (let y = 0; y <= 1; y++) {
                 const r = 12 - y * 2;
                 for (let dx = -r; dx <= r; dx++) {
@@ -1714,7 +1757,6 @@
                 }
             }
 
-            // Escaleras frontales - ajustadas para llegar suavemente al suelo del templo (y=1)
             for(let y=0; y<=1; y++) {
                 for(let dx=-2; dx<=2; dx++) {
                     for(let dz=-14+y*2; dz<=-11; dz++) {
@@ -1723,7 +1765,6 @@
                 }
             }
 
-            // Cuerpo principal del templo
             const roomR = 7;
             for (let y = 2; y <= 10; y++) {
                 for (let dx = -roomR; dx <= roomR; dx++) {
@@ -1739,7 +1780,6 @@
                 }
             }
 
-            // Pórtico de la entrada
             for (let y = 2; y <= 6; y++) {
                 addBlock(cx - 3, cy + y, cz - 9, s2);
                 addBlock(cx + 3, cy + y, cz - 9, s2);
@@ -1747,7 +1787,6 @@
                 addBlock(cx + 3, cy + y, cz - 8, s1);
             }
             
-            // Tejado triangular del pórtico
             for(let y = 7; y <= 9; y++) {
                 let pr = 9 - y + 1; 
                 for(let dx = -pr; dx <= pr; dx++) {
@@ -1757,7 +1796,6 @@
                 }
             }
 
-            // Pisos superiores (Tejado piramidal)
             const tiers = [
                 { yStart: 11, yEnd: 13, r: 8 },
                 { yStart: 14, yEnd: 16, r: 6 },
@@ -1783,20 +1821,15 @@
                 }
             }
             
-            // Cúpula final
             addBlock(cx, cy + 23, cz, s1);
             addBlock(cx, cy + 24, cz, s2);
 
-            // Puerta ensanchada para cubrir todo el hueco y alineada al suelo
             createControlledDoor(cx - 1.5, cy + 1.1, cz - 7, 3, 4.8, 1.5, 0, 0, -Math.PI / 1.5, 3);
 
-            // Objetos Interactivos
-            createInteractable(new THREE.CylinderGeometry(0.5, 0.5, 1, 8), new THREE.MeshLambertMaterial({color:0xffffff}), cx, cy+2.5, cz, {type:'desk', zone:3});
-            createInteractable(new THREE.BoxGeometry(0.6, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x006400}), cx, cy+3.1, cz, {type:'book', zone:3});
+            createInteractable(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), new THREE.MeshLambertMaterial({color:0xffffff}), cx, cy+2.1, cz, {type:'desk', zone:3});
+            createInteractable(new THREE.BoxGeometry(0.6, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x006400}), cx, cy+2.8, cz, {type:'book', zone:3});
             createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx-2, cy+4, cz+2, {type:'lever', zone:3});
 
-            // Tapamos el hueco exacto encima de la puerta para que no puedan salir saltando
-            fillInvisibleCollisionBox(cx - 1, cx + 1, cy + 6, cy + 6, cz - 7, cz - 7);
         }
 
         // ZONE 4: Pyramid (Block 4)
@@ -1823,11 +1856,10 @@
 
             createControlledDoor(cx - 1.5, cy, cz + 15, 3, 6, 1.5, 0, 0, -Math.PI / 1.5, 4, -Math.PI / 4);
 
-            createInteractable(new THREE.BoxGeometry(2, 1, 1), new THREE.MeshLambertMaterial({color:0xffd700}), cx, cy+0.5, cz+3, {type:'desk', zone:4});
-            createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x800080}), cx, cy+1.1, cz+3, {type:'book', zone:4});
+            createInteractable(new THREE.BoxGeometry(2, 1.2, 1), new THREE.MeshLambertMaterial({color:0xffd700}), cx, cy+0.1, cz+3, {type:'desk', zone:4});
+            createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x800080}), cx, cy+0.8, cz+3, {type:'book', zone:4});
             createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx+3, cy+2, cz+1, {type:'lever', zone:4});
 
-            fillInvisibleCollisionBox(cx-3, cx+0, cy+6, cy+15, cz+14, cz+18); 
         }
 
         function isInsideStructure(x, z, y) {
@@ -1839,9 +1871,9 @@
         }
 
         function checkCollision(pos) {
-            const r = 0.4; 
-            const feetY = Math.floor(pos.y - 1.5);
-            const headY = Math.floor(pos.y);
+            const r = 0.25; 
+            const waistY = Math.floor(pos.y - 1.2);
+            const headY = Math.floor(pos.y - 0.2);
             
             const isSolid = (x, yLevel, z) => {
                 const bx = Math.floor(x + 0.5);
@@ -1850,11 +1882,11 @@
                 return t && t !== TYPES.WATER && t !== TYPES.FLOWER && t !== TYPES.STEM && t !== TYPES.TORCH;
             };
             
-            if (isSolid(pos.x, feetY, pos.z) || isSolid(pos.x, headY, pos.z)) return true;
-            if (isSolid(pos.x - r, feetY, pos.z - r) || isSolid(pos.x - r, headY, pos.z - r)) return true;
-            if (isSolid(pos.x + r, feetY, pos.z - r) || isSolid(pos.x + r, headY, pos.z - r)) return true;
-            if (isSolid(pos.x - r, feetY, pos.z + r) || isSolid(pos.x - r, headY, pos.z + r)) return true;
-            if (isSolid(pos.x + r, feetY, pos.z + r) || isSolid(pos.x + r, headY, pos.z + r)) return true;
+            if (isSolid(pos.x, waistY, pos.z) || isSolid(pos.x, headY, pos.z)) return true;
+            if (isSolid(pos.x - r, waistY, pos.z - r) || isSolid(pos.x - r, headY, pos.z - r)) return true;
+            if (isSolid(pos.x + r, waistY, pos.z - r) || isSolid(pos.x + r, headY, pos.z - r)) return true;
+            if (isSolid(pos.x - r, waistY, pos.z + r) || isSolid(pos.x - r, headY, pos.z + r)) return true;
+            if (isSolid(pos.x + r, waistY, pos.z + r) || isSolid(pos.x + r, headY, pos.z + r)) return true;
 
             const px = pos.x;
             const py = pos.y;
@@ -2188,14 +2220,17 @@
                 const stepZ = (-velocity.z * delta) / steps;
 
                 for (let s = 0; s < steps; s++) {
+                    let wasColliding = checkCollision(controls.getObject().position);
+                    
                     controls.moveRight(stepX);
-                    if (checkCollision(controls.getObject().position)) {
+                    if (!wasColliding && checkCollision(controls.getObject().position)) {
                         controls.moveRight(-stepX); 
                         velocity.x = 0;
                     }
                     
+                    wasColliding = checkCollision(controls.getObject().position);
                     controls.moveForward(stepZ);
-                    if (checkCollision(controls.getObject().position)) {
+                    if (!wasColliding && checkCollision(controls.getObject().position)) {
                         controls.moveForward(-stepZ); 
                         velocity.z = 0;
                     }
