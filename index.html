@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1891,6 +1891,15 @@
                             addBlock(cx+dx, cy+h, cz+dz, TYPES.SAND);
                         } else if (h===0) {
                             addBlock(cx+dx, cy-1, cz+dz, TYPES.SAND); 
+                        } else {
+                            // Convertimos el hueco interior inclinado en una caja vertical sólida
+                            // Esto evita que el jugador use la pendiente interior como escalera para escapar
+                            let isRoom = (h <= 4 && Math.abs(dx) <= 9 && Math.abs(dz) <= 9);
+                            let isTunnel = (h <= 4 && Math.abs(dx) <= 1 && dz >= 9 && dz < r);
+                            
+                            if (!isRoom && !isTunnel) {
+                                blocksMap.set(`${Math.floor(cx+dx)},${Math.floor(cy+h)},${Math.floor(cz+dz)}`, INVISIBLE_BARRIER);
+                            }
                         }
                     }
                 }
