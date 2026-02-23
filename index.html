@@ -229,16 +229,16 @@
         .float-anim {
             animation: floatUpFade 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
-        #muteBtn {
-            pointer-events: auto;
-            cursor: pointer;
+        #weatherDisplay {
             background: rgba(0,0,0,0.5);
             border: 1px solid white;
             color: white;
             border-radius: 5px;
             padding: 5px 10px;
-            margin-bottom: 5px;
             font-size: 16px;
+            display: inline-block;
+            text-align: center;
+            min-width: 25px;
         }
 
         /* Disclaimer */
@@ -377,7 +377,6 @@
         </div>
     </div>
     <div id="hud">
-        <button id="muteBtn">🔊</button>
         <div id="weatherDisplay">☀️</div>
     </div>
     
@@ -919,8 +918,6 @@
                 document.getElementById('endgameModal').style.display = 'none';
                 document.getElementById('gameTitle').innerText = `${surname} Islands`;
                 
-                document.getElementById('topStats').innerHTML = `<div class="hud-panel" style="color:gold;">🏆 Master of ${surname} Islands</div>`;
-                
                 document.getElementById('finalIslandsName').innerText = `${surname.toUpperCase()} ISLANDS`;
                 
                 document.getElementById('finalScoreDisplay').innerText = gameScore;
@@ -1024,7 +1021,6 @@
 
         function toggleMute() {
             isMuted = !isMuted;
-            document.getElementById('muteBtn').innerText = isMuted ? '🔇' : '🔊';
         }
 
         init();
@@ -1068,12 +1064,6 @@
 
             const blocker = document.getElementById('blocker');
             const instructions = document.getElementById('instructions');
-
-            const muteBtn = document.getElementById('muteBtn');
-            muteBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleMute();
-            });
 
             instructions.addEventListener('click', function (event) { 
                 if (isFirstStart) {
