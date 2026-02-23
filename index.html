@@ -2074,6 +2074,14 @@
             imesh.position.set(cx, cy, cz);
             imesh.rotation.y = rotY;
             scene.add(imesh);
+
+            for (let y = 0; y <= 11; y++) {
+                for (let dx = -2; dx <= 2; dx++) {
+                    for (let dz = -2; dz <= 2; dz++) {
+                        blocksMap.set(`${Math.floor(cx + dx)},${Math.floor(cy + y)},${Math.floor(cz + dz)}`, INVISIBLE_BARRIER);
+                    }
+                }
+            }
         }
 
         // ZONE 1: Hut (Block 1)
