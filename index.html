@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -121,15 +121,113 @@
             text-align: right;
             z-index: 5;
         }
-        #coinCounter {
+        #topStats {
             position: absolute;
             top: 20px;
             left: 20px;
-            color: gold;
+            display: flex;
+            gap: 15px;
+            z-index: 5;
+        }
+        .hud-panel {
+            background: rgba(100, 100, 100, 0.6);
+            border: 2px solid gold;
+            border-radius: 8px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
             font-size: 28px;
             font-weight: bold;
+            color: white;
             text-shadow: 2px 2px 4px black;
+        }
+        #coinPanel {
+            color: gold;
+        }
+        #itemsCounter {
+            gap: 10px;
+        }
+        .item-icon {
+            opacity: 0.3;
+            filter: grayscale(100%);
+            transition: all 0.5s ease;
+        }
+        .item-icon.collected {
+            opacity: 1;
+            filter: grayscale(0%);
+        }
+        #itemCard {
+            position: absolute;
+            top: 75%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.75);
+            color: #fdf5e6;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #8b4513;
+            text-align: center;
+            font-family: 'Georgia', serif;
+            z-index: 25;
+            display: none;
+            max-width: 450px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+        #itemCard h3 {
+            margin: 0 0 10px 0;
+            color: #f39c12;
+            font-size: 24px;
+        }
+        #itemCard p {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.4;
+        }
+        #scorePanel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
             z-index: 5;
+        }
+        #lavaWarningText {
+            position: absolute;
+            top: 15%;
+            width: 100%;
+            text-align: center;
+            color: #ffd700;
+            font-size: 38px;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            text-shadow: 2px 2px 8px black, 0 0 15px rgba(255,215,0,0.8);
+            pointer-events: none;
+            z-index: 6;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        #lavaWarningText.show {
+            opacity: 1;
+        }
+        #floatingDamage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 60px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px black, 0 0 10px rgba(255,215,0,0.8);
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0;
+        }
+        @keyframes floatUpFade {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            12% { opacity: 1; transform: translate(-50%, -60%) scale(1.2); }
+            60% { opacity: 1; transform: translate(-50%, -80%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -150%) scale(1); }
+        }
+        .float-anim {
+            animation: floatUpFade 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
         #muteBtn {
             pointer-events: auto;
@@ -147,7 +245,9 @@
         #disclaimer {
             position: absolute;
             bottom: 20px;
-            width: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
             text-align: center;
             color: rgba(255, 255, 255, 0.9);
             font-size: 14px;
@@ -263,10 +363,19 @@
         }
 
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <div id="loading">Loading your adventure<span class="loading-dots"></span></div>
-    <div id="coinCounter">🪙 <span id="coinsVal">0</span> / 4</div>
+    <div id="topStats">
+        <div class="hud-panel" id="coinPanel">🪙 <span id="coinsVal">0</span> / 4</div>
+        <div class="hud-panel" id="itemsCounter">
+            <span class="item-icon" id="icon-canteen">🎒</span>
+            <span class="item-icon" id="icon-machete">🗡️</span>
+            <span class="item-icon" id="icon-stick">🦯</span>
+            <span class="item-icon" id="icon-lantern">🏮</span>
+        </div>
+    </div>
     <div id="hud">
         <button id="muteBtn">🔊</button>
         <div id="weatherDisplay">☀️</div>
@@ -274,16 +383,23 @@
     
     <div id="interactionText">Interact</div>
     <div id="zoneTitle"></div>
+    <div id="lavaWarningText">Oh no! You burned yourself with lava!</div>
+    <div id="floatingDamage">-100</div>
+    <div class="hud-panel" id="scorePanel">⭐ <span id="scoreVal">0</span></div>
+    <div id="itemCard">
+        <h3 id="itemCardTitle"></h3>
+        <p id="itemCardDesc"></p>
+    </div>
     <div id="disclaimer">Application created with Gemini AI by @ejruizgarcia, licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.</div>
 
     <div id="blocker">
         <div id="instructions">
-            <h1 id="gameTitle" style="font-size: 36px; margin-bottom: 10px;">Craft Islands</h1>
+            <h1 id="gameTitle" style="font-size: 42px; margin-bottom: 10px; color: #e69138; text-shadow: 2px 2px 5px black;">Craft Islands</h1>
             <p style="font-size: 18px; line-height: 1.5;">Welcome to the interactive game of the mysterious islands.</p>
             <p style="font-size: 16px; color: #ccc;">Controls:<br>
             W, A, S, D to move | Click to interact<br>
             Hold R to sprint | Space to jump<br>
-            ALT + M = Screenshot | CTRL + M = Mute</p>
+            CTRL + S = Screenshot | CTRL + M = Mute</p>
         </div>
     </div>
     <div id="crosshair"></div>
@@ -292,7 +408,7 @@
     <div id="storyModal" class="modal-overlay">
         <div class="parchment-box">
             <span class="close-btn" onclick="closeStory()">×</span>
-            <p>Welcome to the Craft Islands. In this adventure you will find four islands, and on each island many objects and places. Keep taking notes of everything you see in your notebook. You must visit the places you find and write down the weather, because you will need everything for the final writing task.</p>
+            <p>Welcome to the Craft Islands. In this adventure you will find four islands, and on each island many objects and places. Keep taking notes of everything you see in your notebook. You must visit the places you find and write down the weather, because you will need everything for the final writing task. You can also optionally look for hidden mysterious objects around the islands to earn extra points.</p>
             <p>Finally, you will have to collect the four gold coins to be able to leave. Where are the coins? Guess it, I will give you a hint... you will have to go inside...</p>
             <div class="signature">Good luck.<br>Captain Ruiz.</div>
         </div>
@@ -341,16 +457,31 @@
         </div>
     </div>
 
+    <!-- All Items Found Modal -->
+    <div id="allItemsModal" class="modal-overlay">
+        <div class="modal-content" style="text-align: center;">
+            <h2 style="color: #2980b9; font-size: 32px;">🎒 Awesome Discovery! 🏮</h2>
+            <p style="font-size: 18px; margin: 20px 0;">Congratulations! You have found all four mysterious objects hidden across the islands.</p>
+            <p style="font-size: 16px; color: #555;">Keep exploring and remember to take notes for your final task.</p>
+            <button class="check-btn" style="width:auto; background:#2980b9;" onclick="closeAllItemsModal()">Continue</button>
+        </div>
+    </div>
+
     <!-- Final Diploma Modal -->
     <div id="diplomaModal" class="modal-overlay">
         <div class="parchment-box" style="text-align: center;">
             <p>Congratulations, you have managed to finish the game.</p>
             <p>As a gift, from this moment on, the islands are renamed:</p>
-            <p><span id="finalIslandsName" style="font-size: 40px; font-weight: bold; color: #8b4513; display: block; margin: 25px 0;"></span></p>
+            <p><span id="finalIslandsName" style="font-size: 40px; font-weight: bold; color: #8b4513; display: block; margin: 15px 0;"></span></p>
+            <p style="font-size: 24px; font-weight: bold; color: #27ae60; margin-bottom: 20px;">Final Score: <span id="finalScoreDisplay"></span> points</p>
             <div class="signature">
-                Signed Captain Ruiz, <span id="diplomaDate"></span>
+                Signed Captain Ruiz<br>
+                <span id="diplomaDate"></span>
             </div>
-            <button class="check-btn" style="width:auto; margin-top:40px; background:#8b4513; color:#fdf5e6; border: 2px solid #5a2a0a;" onclick="location.reload()">CLOSE</button>
+            <div style="margin-top:30px; display: flex; justify-content: center; gap: 15px;">
+                <button id="screenshotBtn" class="check-btn" style="width:auto; margin-top:0; background:#2980b9; color:#fff;" onclick="takeScreenshot()">📷 Capture Diploma</button>
+                <button id="closeDiplomaBtn" class="check-btn" style="width:auto; margin-top:0; background:#8b4513; color:#fdf5e6; border: 2px solid #5a2a0a;" onclick="location.reload()">CLOSE</button>
+            </div>
         </div>
     </div>
 
@@ -467,6 +598,17 @@
             ]
         };
 
+        const weatherTypes = ['SUNNY', 'CLOUDY', 'RAINY', 'STORMY', 'WINDY', 'FOGGY', 'SNOWY'];
+
+        let timeOfDay = 60; 
+        let weatherIndex = 0;
+        let currentWeather = weatherTypes[weatherIndex];
+        let weatherTimer = 10; 
+        let manualWeather = false;
+        let globalUniforms = { uTime: { value: 0 }, uWind: { value: 0 }, uSnow: { value: 0 }, uRain: { value: 0 } };
+        let targetWind = 0, targetSnow = 0, targetRain = 0, targetFogDensity = 0.002;
+        let lightningFlash = 0;
+
         let camera, scene, renderer, controls;
         let blocksMap = new Map(); 
         let instancedMeshes = {}; 
@@ -486,6 +628,18 @@
         let activeTestVerbs = [];
         let isUIOpen = false;
         let isFirstStart = true;
+        let hideCardTimeout;
+        let collectedItemsCount = 0;
+        let gameScore = 0;
+        let hasBurnedFirstTime = false;
+        let lavaDamageCooldown = 0;
+
+        const collectiblesData = {
+            canteen: { title: "Old Rucksack", desc: "An old leather backpack left behind by a previous explorer.", iconId: "icon-canteen" },
+            machete: { title: "Rusty Machete", desc: "Its blade is dull, but it can still clear a path through thick jungle vines.", iconId: "icon-machete" },
+            stick: { title: "Climbing Stick", desc: "A sturdy wooden stick, perfectly balanced to help navigate steep mountain trails.", iconId: "icon-stick" },
+            lantern: { title: "Paper Lantern", desc: "A bright orange paper lantern, perfect for lighting up dark, treacherous volcanic paths.", iconId: "icon-lantern" }
+        };
 
         const zones = {
             1: { name: "Hut", center: new THREE.Vector3(335, 10, 135), radius: 4.5, door: null, locked: false, completed: false, inside: false, titleText: "Welcome to the shelter of the mountain island" },
@@ -494,14 +648,35 @@
             4: { name: "Pyramid", center: new THREE.Vector3(300, 5, 300), radius: 13, door: null, locked: false, completed: false, inside: false, titleText: "Welcome to the pyramid of the desert island" }
         };
 
-        let timeOfDay = 60; 
-        let currentWeather = 'SUNNY';
-        let weatherTimer = 10; 
-        let globalUniforms = { uTime: { value: 0 }, uWind: { value: 0 }, uSnow: { value: 0 }, uRain: { value: 0 } };
-        let targetWind = 0, targetSnow = 0, targetRain = 0, targetFogDensity = 0.002;
-        let lightningFlash = 0;
+        function updateScore() {
+            document.getElementById('scoreVal').innerText = gameScore;
+        }
 
-        const weatherTypes = ['SUNNY', 'CLOUDY', 'RAINY', 'STORMY', 'WINDY', 'FOGGY', 'SNOWY'];
+        function applyLavaDamage() {
+            gameScore -= 100;
+            updateScore();
+            
+            const damageEl = document.getElementById('floatingDamage');
+            const warningEl = document.getElementById('lavaWarningText');
+
+            if (!hasBurnedFirstTime) {
+                hasBurnedFirstTime = true;
+                warningEl.classList.add('show');
+                
+                setTimeout(() => {
+                    warningEl.classList.remove('show');
+                    setTimeout(() => {
+                        damageEl.classList.remove('float-anim');
+                        void damageEl.offsetWidth; 
+                        damageEl.classList.add('float-anim');
+                    }, 1000);
+                }, 3000);
+            } else {
+                damageEl.classList.remove('float-anim');
+                void damageEl.offsetWidth; 
+                damageEl.classList.add('float-anim');
+            }
+        }
 
         const TYPES = {
             AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, SNOW: 4, SAND: 5, LAVA: 6, WATER: 7, 
@@ -696,7 +871,9 @@
         for(let key in TYPES) blockData[TYPES[key]] = [];
 
         const waterSet = new Set();
-        let volcanoParticles, fireParticles, cloudParticles, rainParticles, snowParticles, lightningMesh;
+        let cloudParticles, rainParticles, snowParticles, lightningMesh, volcanoParticles;
+        let dynamicLights = [];
+        let fireParticleSystems = [];
 
         const MAX_SPLASH_PARTICLES = 600;
         let splashParticles, splashPositions;
@@ -741,15 +918,46 @@
             if(surname) {
                 document.getElementById('endgameModal').style.display = 'none';
                 document.getElementById('gameTitle').innerText = `${surname} Islands`;
-                document.getElementById('coinCounter').innerText = `🏆 Master of ${surname} Islands`;
+                
+                document.getElementById('topStats').innerHTML = `<div class="hud-panel" style="color:gold;">🏆 Master of ${surname} Islands</div>`;
                 
                 document.getElementById('finalIslandsName').innerText = `${surname.toUpperCase()} ISLANDS`;
+                
+                document.getElementById('finalScoreDisplay').innerText = gameScore;
+
                 const today = new Date();
                 const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
                 document.getElementById('diplomaDate').innerText = dateStr;
                 
                 document.getElementById('diplomaModal').style.display = 'flex';
             }
+        };
+
+        window.closeAllItemsModal = function() {
+            document.getElementById('allItemsModal').style.display = 'none';
+            isUIOpen = false;
+            controls.lock();
+        };
+
+        window.takeScreenshot = function() {
+            const btn = document.getElementById('screenshotBtn');
+            const closeBtn = document.getElementById('closeDiplomaBtn');
+            btn.style.display = 'none';
+            closeBtn.style.display = 'none';
+            
+            renderer.render(scene, camera);
+            
+            setTimeout(() => {
+                html2canvas(document.body).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'diploma_craft_islands.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    
+                    btn.style.display = '';
+                    closeBtn.style.display = '';
+                });
+            }, 100);
         };
 
         window.finishTest = function() {
@@ -802,8 +1010,10 @@
 
             const resP = document.getElementById('testResult');
             if(correctCount >= 8) {
+                gameScore += (correctCount * 100);
+                updateScore();
                 resP.style.color = 'green';
-                resP.innerText = `Test Passed! ${correctCount}/10 correct.`;
+                resP.innerText = `Test Passed! ${correctCount}/10 correct. You earned ${correctCount * 100} points.`;
                 document.getElementById('checkTestBtn').style.display = 'none';
                 document.getElementById('continueTestBtn').style.display = 'block';
             } else {
@@ -892,6 +1102,24 @@
                     return;
                 }
 
+                if (event.altKey && (event.code === 'KeyD' || event.key === 'd' || event.key === 'D')) {
+                    event.preventDefault();
+                    if (timeOfDay < 240) {
+                        timeOfDay = 250; 
+                    } else {
+                        timeOfDay = 60;  
+                    }
+                    return;
+                }
+
+                if (event.altKey && (event.code === 'KeyW' || event.key === 'w' || event.key === 'W')) {
+                    event.preventDefault();
+                    manualWeather = true;
+                    weatherIndex = (weatherIndex + 1) % weatherTypes.length;
+                    currentWeather = weatherTypes[weatherIndex];
+                    return;
+                }
+
                 if (event.altKey && (event.code === 'KeyT' || event.key === 't' || event.key === 'T')) {
                     event.preventDefault();
                     
@@ -923,8 +1151,39 @@
                     return;
                 }
 
-                if (event.altKey && (event.code === 'KeyS' || event.key === 's' || event.key === 'S')) {
-                    if (document.getElementById('testModal').style.display === 'flex') {
+                if (event.altKey && (event.code === 'KeyF' || event.key === 'f' || event.key === 'F')) {
+                    event.preventDefault();
+                    
+                    const findDestinations = [
+                        { x: 295, z: 312 }, 
+                        { x: 100, z: 366 },  
+                        { x: 297, z: 103 }, 
+                        { x: 152, z: 100 }  
+                    ];
+                    
+                    const playerPos = controls.getObject().position;
+                    let currentIdx = 0;
+                    let minDist = Infinity;
+                    
+                    for(let i=0; i<findDestinations.length; i++) {
+                        let dist = Math.hypot(playerPos.x - findDestinations[i].x, playerPos.z - findDestinations[i].z);
+                        if(dist < minDist) {
+                            minDist = dist;
+                            currentIdx = i;
+                        }
+                    }
+                    
+                    let nextIdx = (currentIdx + 1) % findDestinations.length;
+                    let dest = findDestinations[nextIdx];
+                    
+                    let highestY = getFloorHeight(dest.x, dest.z, 60);
+                    controls.getObject().position.set(dest.x, highestY + 3, dest.z);
+                    velocity.y = 0;
+                    return;
+                }
+
+                if (event.altKey && (event.code === 'KeyP' || event.key === 'p' || event.key === 'P')) {
+                    if (document.getElementById('testModal').style.display === 'flex' && document.getElementById('continueTestBtn').style.display === 'none') {
                         event.preventDefault();
                         
                         for(let i=0; i<10; i++) {
@@ -932,16 +1191,18 @@
                             if(card) card.classList.add('correct');
                         }
                         
+                        gameScore += 1000;
+                        updateScore();
                         const resP = document.getElementById('testResult');
                         resP.style.color = 'green';
-                        resP.innerText = `Test Passed (Shortcut)! 10/10 correct.`;
+                        resP.innerText = `Test Passed (Shortcut)! 10/10 correct. You earned 1000 points.`;
                         document.getElementById('checkTestBtn').style.display = 'none';
                         document.getElementById('continueTestBtn').style.display = 'block';
                         return;
                     }
                 }
 
-                if (event.altKey && (event.code === 'KeyM' || event.key === 'm' || event.key === 'M')) {
+                if (event.ctrlKey && (event.code === 'KeyS' || event.key === 's' || event.key === 'S')) {
                     event.preventDefault();
                     renderer.render(scene, camera);
                     const link = document.createElement('a');
@@ -977,8 +1238,6 @@
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
             document.addEventListener('mousedown', onMouseClick);
-
-            initFireParticles();
         }
 
         function onMouseClick(event) {
@@ -1003,6 +1262,44 @@
                 openBook(data.zone);
             } else if (data.type === 'lever') {
                 openTest(data.zone);
+            } else if (data.type === 'collectible') {
+                collectItem(obj);
+            }
+        }
+
+        function collectItem(mesh) {
+            const id = mesh.userData.id;
+            const data = collectiblesData[id];
+            
+            document.getElementById(data.iconId).classList.add('collected');
+            document.getElementById('itemCardTitle').innerText = data.title;
+            document.getElementById('itemCardDesc').innerText = data.desc;
+            
+            const card = document.getElementById('itemCard');
+            card.style.display = 'block';
+            
+            clearTimeout(hideCardTimeout);
+            
+            scene.remove(mesh);
+            const index = interactables.indexOf(mesh);
+            if(index > -1) interactables.splice(index, 1);
+
+            collectedItemsCount++;
+            gameScore += 200;
+            updateScore();
+
+            if (collectedItemsCount === 4) {
+                hideCardTimeout = setTimeout(() => {
+                    card.style.display = 'none';
+                    isUIOpen = true;
+                    document.exitPointerLock();
+                    document.getElementById('blocker').style.display = 'none';
+                    document.getElementById('allItemsModal').style.display = 'flex';
+                }, 2500);
+            } else {
+                hideCardTimeout = setTimeout(() => {
+                    card.style.display = 'none';
+                }, 6000);
             }
         }
 
@@ -1102,6 +1399,82 @@
             return doorObj;
         }
 
+        function createCollectibleMesh(id, x, y, z) {
+            let mesh;
+            if (id === 'canteen') {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.8), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
+                
+                let body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.3), new THREE.MeshLambertMaterial({color: 0x8b5a2b}));
+                body.position.y = 0;
+                
+                let flap = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.1, 0.32), new THREE.MeshLambertMaterial({color: 0x6b4226}));
+                flap.position.set(0, 0.3, 0);
+                
+                let pocket = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.15), new THREE.MeshLambertMaterial({color: 0x6b4226}));
+                pocket.position.set(0, -0.1, 0.18);
+                
+                let leftPocket = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.2), new THREE.MeshLambertMaterial({color: 0x6b4226}));
+                leftPocket.position.set(-0.28, -0.05, 0);
+                
+                let rightPocket = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.2), new THREE.MeshLambertMaterial({color: 0x6b4226}));
+                rightPocket.position.set(0.28, -0.05, 0);
+                
+                let bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.6, 8), new THREE.MeshLambertMaterial({color: 0x3a5f2b}));
+                bedroll.rotation.z = Math.PI / 2;
+                bedroll.position.set(0, 0.45, 0);
+                
+                let strap1 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.32, 0.05), new THREE.MeshLambertMaterial({color: 0x3e2723}));
+                strap1.position.set(-0.15, 0.45, 0);
+                
+                let strap2 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.32, 0.05), new THREE.MeshLambertMaterial({color: 0x3e2723}));
+                strap2.position.set(0.15, 0.45, 0);
+
+                mesh.add(body);
+                mesh.add(flap);
+                mesh.add(pocket);
+                mesh.add(leftPocket);
+                mesh.add(rightPocket);
+                mesh.add(bedroll);
+                mesh.add(strap1);
+                mesh.add(strap2);
+                
+                mesh.position.set(x, y + 0.35, z);
+                mesh.rotation.x = -Math.PI / 12;
+                mesh.rotation.y = Math.PI / 4;
+            } else if (id === 'machete') {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 0.4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
+                let handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.05), new THREE.MeshLambertMaterial({color: 0x5c4033}));
+                handle.position.y = -0.2;
+                let blade = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.6, 0.1), new THREE.MeshLambertMaterial({color: 0x777777}));
+                blade.position.y = 0.2;
+                mesh.add(handle);
+                mesh.add(blade);
+                mesh.position.set(x, y + 0.2, z);
+                mesh.rotation.x = Math.PI / 2;
+                mesh.rotation.z = Math.PI / 6;
+            } else if (id === 'stick') {
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8), new THREE.MeshLambertMaterial({color: 0x6b4226}));
+                mesh.position.set(x, y + 0.75, z);
+                mesh.rotation.x = Math.PI / 8;
+                mesh.rotation.z = Math.PI / 8;
+            } else if (id === 'lantern') {
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
+                let base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8), new THREE.MeshLambertMaterial({color: 0x222222}));
+                base.position.y = -0.15;
+                let body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.3, 8), new THREE.MeshLambertMaterial({color: 0xff6600}));
+                body.position.y = 0.025;
+                let top = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8), new THREE.MeshLambertMaterial({color: 0x222222}));
+                top.position.y = 0.2;
+                mesh.add(base);
+                mesh.add(body);
+                mesh.add(top);
+                mesh.position.set(x, y + 0.25, z);
+            }
+            mesh.userData = { type: 'collectible', id: id };
+            scene.add(mesh);
+            interactables.push(mesh);
+        }
+
         function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -1170,23 +1543,12 @@
         }
 
         function finalizeInit() {
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
             window.addEventListener('resize', onWindowResize);
             animate();
-        }
-
-        function initFireParticles() {
-            const pGeo = new THREE.BufferGeometry();
-            const pPos = [];
-            for(let i=0; i<60; i++) {
-                pPos.push(270 + (Math.random()-0.5)*0.8, 4.5 + Math.random()*2, 120 + (Math.random()-0.5)*0.8);
-            }
-            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
-            fireParticles = new THREE.Points(pGeo, new THREE.PointsMaterial({color: 0xffaa00, size: 0.25, transparent: true, opacity: 0.9}));
-            scene.add(fireParticles);
         }
 
         function setupWeatherSystems() {
@@ -1308,6 +1670,53 @@
                 }
             }
             return finalHeight;
+        }
+
+        function addFireParticles(x, y, z, count = 60, height = 3.5, spread = 0.8) {
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = [];
+            for(let i=0; i<count; i++) {
+                pPos.push((Math.random()-0.5)*spread, Math.random()*(height/2), (Math.random()-0.5)*spread);
+            }
+            pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
+            const pSys = new THREE.Points(pGeo, new THREE.PointsMaterial({color: 0xffaa00, size: 0.25, transparent: true, opacity: 0.0}));
+            pSys.position.set(x, y, z);
+            pSys.userData = { height: height, spread: spread };
+            scene.add(pSys);
+            fireParticleSystems.push(pSys);
+        }
+
+        function buildTorch(x, y, z) {
+            addBlock(x, y, z, TYPES.STEM, 0x5c4033); 
+            addBlock(x, y + 0.6, z, TYPES.TORCH);
+            const light = new THREE.PointLight(0xffaa00, 0.0, 20);
+            light.position.set(x, y + 1.0, z);
+            scene.add(light);
+            dynamicLights.push({light: light, maxIntensity: 2.5});
+            addFireParticles(x, y + 0.8, z, 15, 1.0, 0.3);
+        }
+
+        function buildCampfire(x, floorYLevel, z) {
+            const fireGroup = new THREE.Group();
+            const logGeo = new THREE.CylinderGeometry(0.3, 0.3, 2.5, 8);
+            const logMat = new THREE.MeshLambertMaterial({ map: texWood });
+            
+            const groundY = floorYLevel - 0.5;
+            
+            for(let i=0; i<4; i++) {
+                const log = new THREE.Mesh(logGeo, logMat);
+                log.rotation.x = Math.PI / 2;
+                log.rotation.z = (Math.PI / 4) * i;
+                log.position.set(x, groundY + 0.3, z);
+                fireGroup.add(log);
+            }
+            scene.add(fireGroup);
+            
+            const light = new THREE.PointLight(0xff8800, 0.0, 40);
+            light.position.set(x, groundY + 2, z);
+            scene.add(light);
+            dynamicLights.push({light: light, maxIntensity: 4.0});
+            addFireParticles(x, groundY + 0.5, z, 60, 3.5, 0.8);
         }
 
         function generateWorld() {
@@ -1529,12 +1938,30 @@
             let rotY105 = Math.atan2(105 - 100, 45 - 100) - Math.PI;
             buildMoai(45, getFloorHeight(45, 105, 50), 105, rotY105);
 
-            buildCampfire(270, 4, 120);
+            buildCampfire(270, getFloorHeight(270, 120, 50), 120);
+            
+            let hutFireX = 328;
+            let hutFireZ = 146;
+            let hutFireY = getFloorHeight(hutFireX, hutFireZ, 50);
+            buildCampfire(hutFireX, hutFireY, hutFireZ);
             
             buildLogHut(335, 10, 135);
             buildShipwreck(175, 2, 100);
             buildHinduTemple(100, 24, 350);
             buildHugePyramid(300, 5, 300);
+
+            function placeTorchAt(tx, tz) {
+                let ty = getFloorHeight(tx, tz, 50);
+                buildTorch(tx, ty, tz);
+            }
+            
+            placeTorchAt(100 - 12, 350 - 12);
+            placeTorchAt(100 + 12, 350 - 12);
+            placeTorchAt(100 - 12, 350 + 12);
+            placeTorchAt(100 + 12, 350 + 12);
+            
+            placeTorchAt(100 - 3, 350 - 14);
+            placeTorchAt(100 + 3, 350 - 14);
 
             const blockGeo = new THREE.BoxGeometry(1, 1, 1);
             const matrix = new THREE.Matrix4();
@@ -1571,6 +1998,20 @@
                 scene.add(mesh);
                 instancedMeshes[typeId] = mesh;
             }
+
+            let canteenY = getFloorHeight(294, 316, 50);
+            addBlock(294, canteenY, 316, TYPES.CACTUS);
+            addBlock(294, canteenY + 1, 316, TYPES.CACTUS);
+            createCollectibleMesh('canteen', 295, getFloorHeight(295, 316, 50), 316);
+
+            let macheteY = getFloorHeight(100, 363, 50);
+            createCollectibleMesh('machete', 100, macheteY, 363);
+
+            let stickY = getFloorHeight(300, 100, 60);
+            createCollectibleMesh('stick', 300, stickY, 100);
+
+            let lanternY = getFloorHeight(155, 100, 50);
+            createCollectibleMesh('lantern', 155, lanternY, 100);
 
             const pGeo = new THREE.BufferGeometry();
             const pPos = [];
@@ -1643,34 +2084,6 @@
             imesh.position.set(cx, cy, cz);
             imesh.rotation.y = rotY;
             scene.add(imesh);
-
-            for (let y = 0; y <= 11; y++) {
-                for (let dx = -1; dx <= 2; dx++) {
-                    for (let dz = -2; dz <= 2; dz++) {
-                        blocksMap.set(`${Math.floor(cx + dx)},${Math.floor(cy + y)},${Math.floor(cz + dz)}`, INVISIBLE_BARRIER);
-                    }
-                }
-            }
-        }
-
-        function buildCampfire(x, y, z) {
-            const fireGroup = new THREE.Group();
-            const logGeo = new THREE.CylinderGeometry(0.3, 0.3, 2.5, 8);
-            const logMat = new THREE.MeshLambertMaterial({ map: texWood });
-            
-            for(let i=0; i<4; i++) {
-                const log = new THREE.Mesh(logGeo, logMat);
-                log.rotation.x = Math.PI / 2;
-                log.rotation.z = (Math.PI / 4) * i;
-                log.position.y = 0.3;
-                fireGroup.add(log);
-            }
-            fireGroup.position.set(x, y, z);
-            scene.add(fireGroup);
-            addBlock(x, y-1, z, TYPES.LAVA); 
-            const light = new THREE.PointLight(0xff8800, 4.0, 40);
-            light.position.set(x, y + 2, z);
-            scene.add(light);
         }
 
         // ZONE 1: Hut (Block 1)
@@ -1891,24 +2304,16 @@
                             addBlock(cx+dx, cy+h, cz+dz, TYPES.SAND);
                         } else if (h===0) {
                             addBlock(cx+dx, cy-1, cz+dz, TYPES.SAND); 
-                        } else {
-                            // Convertimos el hueco interior inclinado en una caja vertical sólida
-                            // Esto evita que el jugador use la pendiente interior como escalera para escapar
-                            let isRoom = (h <= 4 && Math.abs(dx) <= 9 && Math.abs(dz) <= 9);
-                            let isTunnel = (h <= 4 && Math.abs(dx) <= 1 && dz >= 9 && dz < r);
-                            
-                            if (!isRoom && !isTunnel) {
-                                blocksMap.set(`${Math.floor(cx+dx)},${Math.floor(cy+h)},${Math.floor(cz+dz)}`, INVISIBLE_BARRIER);
-                            }
                         }
                     }
                 }
             }
             
             addBlock(cx, cy, cz, TYPES.GOLD); 
-            const light = new THREE.PointLight(0xffdd66, 2.0, 25);
+            const light = new THREE.PointLight(0xffdd66, 0.0, 25);
             light.position.set(cx, cy + 3, cz);
             scene.add(light);
+            dynamicLights.push({light: light, maxIntensity: 2.0});
 
             createControlledDoor(cx - 1.5, cy, cz + 15, 3, 6, 1.5, 0, 0, -Math.PI / 1.5, 4, -Math.PI / 4);
 
@@ -2003,10 +2408,13 @@
                 dirLight.intensity = 0.3;
             }
 
-            weatherTimer -= delta;
-            if(weatherTimer <= 0) {
-                currentWeather = weatherTypes[Math.floor(Math.random() * weatherTypes.length)];
-                weatherTimer = 40 + Math.random() * 40; 
+            if (!manualWeather) {
+                weatherTimer -= delta;
+                if(weatherTimer <= 0) {
+                    weatherIndex = Math.floor(Math.random() * weatherTypes.length);
+                    currentWeather = weatherTypes[weatherIndex];
+                    weatherTimer = 40 + Math.random() * 40; 
+                }
             }
 
             let weatherEmoji = {
@@ -2036,6 +2444,11 @@
             
             scene.background.lerpColors(scene.background, skyColor, delta * 0.5);
             scene.fog.color.copy(scene.background);
+
+            let targetLight = isNight ? 1.0 : 0.0;
+            for (let dl of dynamicLights) {
+                dl.light.intensity += (dl.maxIntensity * targetLight - dl.light.intensity) * delta * 2.0;
+            }
 
             if (audioCtx) {
                 const inStructure = isInsideStructure(camera.position.x, camera.position.z, camera.position.y);
@@ -2196,6 +2609,9 @@
                 } else if (obj.userData.type === 'lever') {
                     textEl.innerText = "Click to take Test";
                     textEl.style.color = "orange";
+                } else if (obj.userData.type === 'collectible') {
+                    textEl.innerText = "Click to collect object";
+                    textEl.style.color = "cyan";
                 }
             } else {
                 textEl.style.display = 'none';
@@ -2298,6 +2714,20 @@
                     controls.getObject().position.y = minHeight;
                     canJump = true;
                 }
+
+                const currentBx = Math.floor(playerPos.x + 0.5);
+                const currentBz = Math.floor(playerPos.z + 0.5);
+                const blockBeneath = blocksMap.get(`${currentBx},${floorY - 1},${currentBz}`);
+                
+                if (blockBeneath === TYPES.LAVA && Math.abs(playerPos.y - solidGroundY) < 0.2) {
+                    if (lavaDamageCooldown <= 0) {
+                        applyLavaDamage();
+                        lavaDamageCooldown = 5.0; 
+                    }
+                }
+                if (lavaDamageCooldown > 0) {
+                    lavaDamageCooldown -= delta;
+                }
             }
 
             const runTime = time * 0.003;
@@ -2306,30 +2736,25 @@
                 MATERIALS[TYPES.WATER].userData.shader.uniforms.uTime.value = runTime;
             }
 
-            if(fireParticles) {
-                const positions = fireParticles.geometry.attributes.position.array;
-                for(let i=1; i<positions.length; i+=3) {
-                    positions[i] += 1.5 * delta;
-                    if(positions[i] > 8) {
-                        positions[i] = 4.5; 
-                        positions[i-1] = 270 + (Math.random()-0.5)*0.8; 
-                        positions[i+1] = 120 + (Math.random()-0.5)*0.8; 
-                    }
-                }
-                fireParticles.geometry.attributes.position.needsUpdate = true;
-            }
+            let isNightLocal = timeOfDay >= 240;
+            for (let pSys of fireParticleSystems) {
+                const targetOp = isNightLocal ? 0.9 : 0.0;
+                pSys.material.opacity += (targetOp - pSys.material.opacity) * delta * 2.0;
 
-            if(volcanoParticles) {
-                const positions = volcanoParticles.geometry.attributes.position.array;
-                for(let i=1; i<positions.length; i+=3) {
-                    positions[i] += 0.2;
-                    if(positions[i] > 65) {
-                        positions[i] = 45; 
-                        positions[i-1] = 100 + (Math.random()-0.5)*6; 
-                        positions[i+1] = 100 + (Math.random()-0.5)*6; 
+                if (pSys.material.opacity > 0.01) {
+                    const positions = pSys.geometry.attributes.position.array;
+                    const h = pSys.userData.height;
+                    const spread = pSys.userData.spread;
+                    for(let i=1; i<positions.length; i+=3) {
+                        positions[i] += (h/2) * delta;
+                        if(positions[i] > h) {
+                            positions[i] = 0; 
+                            positions[i-1] = (Math.random()-0.5)*spread; 
+                            positions[i+1] = (Math.random()-0.5)*spread; 
+                        }
                     }
+                    pSys.geometry.attributes.position.needsUpdate = true;
                 }
-                volcanoParticles.geometry.attributes.position.needsUpdate = true;
             }
 
             if(splashParticles) {
@@ -2349,6 +2774,19 @@
                     }
                 }
                 if (active) splashParticles.geometry.attributes.position.needsUpdate = true;
+            }
+
+            if(volcanoParticles) {
+                const positions = volcanoParticles.geometry.attributes.position.array;
+                for(let i=1; i<positions.length; i+=3) {
+                    positions[i] += 0.2;
+                    if(positions[i] > 65) {
+                        positions[i] = 45; 
+                        positions[i-1] = 100 + (Math.random()-0.5)*6; 
+                        positions[i+1] = 100 + (Math.random()-0.5)*6; 
+                    }
+                }
+                volcanoParticles.geometry.attributes.position.needsUpdate = true;
             }
 
             renderer.render(scene, camera);
