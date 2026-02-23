@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -389,7 +389,7 @@
         <h3 id="itemCardTitle"></h3>
         <p id="itemCardDesc"></p>
     </div>
-    <div id="disclaimer">Application created with Gemini AI by @ejruizgarcia, licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.</div>
+    <div id="disclaimer">Application created with Gemini AI by Eduardo Ruiz (@ejruizgarcia), licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.</div>
 
     <div id="blocker">
         <div id="instructions">
@@ -1428,7 +1428,7 @@
                 mesh.add(strap1);
                 mesh.add(strap2);
                 
-                mesh.position.set(x, y + 0.35, z);
+                mesh.position.set(x, y - 0.15, z);
                 mesh.rotation.x = -Math.PI / 12;
                 mesh.rotation.y = Math.PI / 4;
             } else if (id === 'machete') {
@@ -1439,14 +1439,16 @@
                 blade.position.y = 0.2;
                 mesh.add(handle);
                 mesh.add(blade);
-                mesh.position.set(x, y + 0.2, z);
+                mesh.position.set(x, y - 0.46, z);
                 mesh.rotation.x = Math.PI / 2;
                 mesh.rotation.z = Math.PI / 6;
             } else if (id === 'stick') {
-                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8), new THREE.MeshLambertMaterial({color: 0x6b4226}));
-                mesh.position.set(x, y + 0.75, z);
-                mesh.rotation.x = Math.PI / 8;
-                mesh.rotation.z = Math.PI / 8;
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
+                let stickModel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8), new THREE.MeshLambertMaterial({color: 0x6b4226}));
+                stickModel.rotation.x = Math.PI / 8;
+                stickModel.rotation.z = Math.PI / 8;
+                mesh.add(stickModel);
+                mesh.position.set(x, y - 0.35, z);
             } else if (id === 'lantern') {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
                 let base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8), new THREE.MeshLambertMaterial({color: 0x222222}));
@@ -1458,7 +1460,7 @@
                 mesh.add(base);
                 mesh.add(body);
                 mesh.add(top);
-                mesh.position.set(x, y + 0.25, z);
+                mesh.position.set(x, y - 0.32, z);
             }
             mesh.userData = { type: 'collectible', id: id };
             scene.add(mesh);
