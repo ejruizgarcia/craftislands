@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -632,6 +632,19 @@
         let gameScore = 0;
         let hasBurnedFirstTime = false;
         let lavaDamageCooldown = 0;
+        let isGodView = false;
+        let isTransitioningToGodView = false;
+        let isTransitioningFromGodView = false;
+        let transitionTime = 0;
+        let startTransitionPos = new THREE.Vector3();
+        let startTransitionPitch = 0;
+        let startTransitionYaw = 0;
+        let savedPos = new THREE.Vector3();
+        let savedPitch = 0;
+        let savedYaw = 0;
+        let targetGodYaw = 0;
+        let godViewLevel = 0;
+        let targetGodAltitude = 300;
 
         const collectiblesData = {
             canteen: { title: "Old Rucksack", desc: "An old leather backpack left behind by a previous explorer.", iconId: "icon-canteen" },
@@ -1172,6 +1185,71 @@
                     return;
                 }
 
+                if (event.altKey && (event.code === 'KeyG' || event.key === 'g' || event.key === 'G')) {
+                    event.preventDefault();
+                    if (isTransitioningFromGodView || isTransitioningToGodView) return;
+
+                    if (!isGodView) {
+                        savedPos.copy(controls.getObject().position);
+                        savedPitch = camera.rotation.x;
+                        savedYaw = controls.getObject().rotation.y;
+                        
+                        isTransitioningToGodView = true;
+                        transitionTime = 0;
+                        startTransitionPos.copy(controls.getObject().position);
+                        startTransitionPitch = camera.rotation.x;
+                        startTransitionYaw = controls.getObject().rotation.y;
+                        
+                        godViewLevel = 1;
+                        targetGodAltitude = 300;
+
+                        let diff = 0 - startTransitionYaw;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        targetGodYaw = startTransitionYaw + diff;
+                        
+                        velocity.set(0,0,0);
+                    } else {
+                        if (godViewLevel === 1) {
+                            godViewLevel = 2;
+                            targetGodAltitude = 200;
+                            isTransitioningToGodView = true;
+                            transitionTime = 0;
+                            startTransitionPos.copy(controls.getObject().position);
+                            startTransitionPitch = camera.rotation.x;
+                            startTransitionYaw = controls.getObject().rotation.y;
+                            targetGodYaw = startTransitionYaw;
+                            velocity.set(0,0,0);
+                        } else if (godViewLevel === 2) {
+                            godViewLevel = 3;
+                            targetGodAltitude = 100;
+                            isTransitioningToGodView = true;
+                            transitionTime = 0;
+                            startTransitionPos.copy(controls.getObject().position);
+                            startTransitionPitch = camera.rotation.x;
+                            startTransitionYaw = controls.getObject().rotation.y;
+                            targetGodYaw = startTransitionYaw;
+                            velocity.set(0,0,0);
+                        } else {
+                            godViewLevel = 0;
+                            isGodView = false;
+                            isTransitioningFromGodView = true;
+                            transitionTime = 0;
+                            startTransitionPos.copy(controls.getObject().position);
+                            startTransitionPitch = camera.rotation.x;
+                            startTransitionYaw = controls.getObject().rotation.y;
+                            
+                            let diff = savedYaw - startTransitionYaw;
+                            while (diff < -Math.PI) diff += Math.PI * 2;
+                            while (diff > Math.PI) diff -= Math.PI * 2;
+                            savedYaw = startTransitionYaw + diff;
+                            
+                            velocity.set(0,0,0);
+                        }
+                    }
+                    return;
+                }
+
                 if (event.altKey && (event.code === 'KeyP' || event.key === 'p' || event.key === 'P')) {
                     if (document.getElementById('testModal').style.display === 'flex' && document.getElementById('continueTestBtn').style.display === 'none') {
                         event.preventDefault();
@@ -1232,6 +1310,50 @@
 
         function onMouseClick(event) {
             if(!controls.isLocked) return;
+
+            if (isGodView) {
+                let targetX = controls.getObject().position.x;
+                let targetZ = controls.getObject().position.z;
+
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const allMeshes = Object.values(instancedMeshes);
+                const intersects = raycaster.intersectObjects(allMeshes, false);
+
+                if (intersects.length > 0) {
+                    targetX = intersects[0].point.x;
+                    targetZ = intersects[0].point.z;
+                }
+
+                let floorY = getFloorHeight(targetX, targetZ, 300);
+                
+                let targetY = floorY + 1.6;
+                const oceanLevel = 2.0;
+                const waterSurfaceY = oceanLevel + 0.2; 
+                if (targetY < waterSurfaceY && floorY < oceanLevel && !isInsideStructure(targetX, targetZ, oceanLevel)) {
+                    targetY = waterSurfaceY;
+                }
+
+                savedPos.set(targetX, targetY, targetZ);
+                savedPitch = 0; 
+                savedYaw = controls.getObject().rotation.y; 
+                
+                godViewLevel = 0;
+                isGodView = false;
+                isTransitioningFromGodView = true;
+                transitionTime = 0;
+                startTransitionPos.copy(controls.getObject().position);
+                startTransitionPitch = camera.rotation.x;
+                startTransitionYaw = controls.getObject().rotation.y;
+                
+                let diff = savedYaw - startTransitionYaw;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                savedYaw = startTransitionYaw + diff;
+                
+                velocity.set(0,0,0);
+                return;
+            }
+
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             const intersects = raycaster.intersectObjects(interactables, false);
             if (intersects.length > 0 && intersects[0].distance < 6) {
@@ -1448,7 +1570,7 @@
                 stickModel.rotation.x = Math.PI / 8;
                 stickModel.rotation.z = Math.PI / 8;
                 mesh.add(stickModel);
-                mesh.position.set(x, y - 0.35, z);
+                mesh.position.set(x, y - 0.70, z);
             } else if (id === 'lantern') {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
                 let base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8), new THREE.MeshLambertMaterial({color: 0x222222}));
@@ -2436,7 +2558,16 @@
             globalUniforms.uWind.value += (targetWind - globalUniforms.uWind.value) * delta * 0.5;
             globalUniforms.uSnow.value += (targetSnow - globalUniforms.uSnow.value) * delta * 0.1; 
             globalUniforms.uRain.value += (targetRain - globalUniforms.uRain.value) * delta * 2.0;
-            scene.fog.density += (targetFogDensity - scene.fog.density) * delta * 0.2;
+            
+            if (isTransitioningToGodView) {
+                scene.fog.density = (1.0 - (transitionTime / 2.0)) * targetFogDensity;
+            } else if (isGodView) {
+                scene.fog.density = 0;
+            } else if (isTransitioningFromGodView) {
+                scene.fog.density = (transitionTime / 2.0) * targetFogDensity;
+            } else {
+                scene.fog.density += (targetFogDensity - scene.fog.density) * delta * 0.2;
+            }
 
             if (currentWeather === 'FOGGY' || currentWeather === 'RAINY' || currentWeather === 'STORMY' || currentWeather === 'SNOWY') {
                 skyColor.lerp(new THREE.Color(isNight ? 0x111111 : 0x8899aa), 0.8);
@@ -2651,82 +2782,130 @@
                     isSwimming = true;
                 }
 
-                if (isSwimming && !wasSwimming && velocity.y < -10) createSplash(playerPos.x, oceanLevel, playerPos.z, 40, 1.5); 
-                if (isSwimming && (Math.abs(velocity.x) > 2 || Math.abs(velocity.z) > 2)) {
-                    if (Math.random() < 0.3) createSplash(playerPos.x, oceanLevel, playerPos.z, 2, 0.4);
-                }
-
-                if(globalUniforms.uRain.value > 0.5 && Math.random() < 0.2) {
-                    const rx = playerPos.x + (Math.random()-0.5)*40;
-                    const rz = playerPos.z + (Math.random()-0.5)*40;
-                    if(!isInsideStructure(rx, rz, oceanLevel) && getFloorHeight(rx, rz, 50) <= oceanLevel) {
-                        createSplash(rx, oceanLevel, rz, 1, 0.3);
+                if (isTransitioningToGodView) {
+                    transitionTime += delta;
+                    let t = transitionTime / 2.0; 
+                    if (t >= 1.0) {
+                        isTransitioningToGodView = false;
+                        isGodView = true;
+                        let finalX = (godViewLevel === 1) ? 200 : startTransitionPos.x;
+                        let finalZ = (godViewLevel === 1) ? 200 : startTransitionPos.z;
+                        controls.getObject().position.set(finalX, targetGodAltitude, finalZ);
+                        camera.rotation.x = -Math.PI / 2;
+                        controls.getObject().rotation.y = targetGodYaw;
+                    } else {
+                        let ease = t * t * (3 - 2 * t);
+                        let finalX = (godViewLevel === 1) ? 200 : startTransitionPos.x;
+                        let finalZ = (godViewLevel === 1) ? 200 : startTransitionPos.z;
+                        controls.getObject().position.lerpVectors(startTransitionPos, new THREE.Vector3(finalX, targetGodAltitude, finalZ), ease);
+                        camera.rotation.x = startTransitionPitch + (-Math.PI / 2 - startTransitionPitch) * ease;
+                        controls.getObject().rotation.y = startTransitionYaw + (targetGodYaw - startTransitionYaw) * ease;
                     }
-                }
+                } else if (isTransitioningFromGodView) {
+                    transitionTime += delta;
+                    let t = transitionTime / 2.0; 
+                    if (t >= 1.0) {
+                        isTransitioningFromGodView = false;
+                        controls.getObject().position.copy(savedPos);
+                        camera.rotation.x = savedPitch;
+                        controls.getObject().rotation.y = savedYaw;
+                    } else {
+                        let ease = t * t * (3 - 2 * t);
+                        controls.getObject().position.lerpVectors(startTransitionPos, savedPos, ease);
+                        camera.rotation.x = startTransitionPitch + (savedPitch - startTransitionPitch) * ease;
+                        controls.getObject().rotation.y = startTransitionYaw + (savedYaw - startTransitionYaw) * ease;
+                    }
+                } else if (!isGodView) {
+                    if (isSwimming && !wasSwimming && velocity.y < -10) createSplash(playerPos.x, oceanLevel, playerPos.z, 40, 1.5); 
+                    if (isSwimming && (Math.abs(velocity.x) > 2 || Math.abs(velocity.z) > 2)) {
+                        if (Math.random() < 0.3) createSplash(playerPos.x, oceanLevel, playerPos.z, 2, 0.4);
+                    }
 
-                if (isSwimming && playerPos.x > 96 && playerPos.x < 104 && playerPos.z > 190 && playerPos.z < 390) {
-                    playerPos.z -= 18.0 * delta;
-                }
+                    if(globalUniforms.uRain.value > 0.5 && Math.random() < 0.2) {
+                        const rx = playerPos.x + (Math.random()-0.5)*40;
+                        const rz = playerPos.z + (Math.random()-0.5)*40;
+                        if(!isInsideStructure(rx, rz, oceanLevel) && getFloorHeight(rx, rz, 50) <= oceanLevel) {
+                            createSplash(rx, oceanLevel, rz, 1, 0.3);
+                        }
+                    }
 
-                wasSwimming = isSwimming;
+                    if (isSwimming && playerPos.x > 96 && playerPos.x < 104 && playerPos.z > 190 && playerPos.z < 390) {
+                        playerPos.z -= 18.0 * delta;
+                    }
 
-                if (isSwimming) {
-                    if (velocity.y < 0) velocity.y -= 15.0 * delta; 
-                    else velocity.y -= 15.0 * delta; 
+                    wasSwimming = isSwimming;
+
+                    if (isSwimming) {
+                        if (velocity.y < 0) velocity.y -= 15.0 * delta; 
+                        else velocity.y -= 15.0 * delta; 
+                    } else {
+                        if (velocity.y < 0) velocity.y -= 90.0 * delta; 
+                        else velocity.y -= 30.0 * delta; 
+                    }
+
+                    direction.z = Number(moveForward) - Number(moveBackward);
+                    direction.x = Number(moveRight) - Number(moveLeft);
+                    direction.normalize();
+
+                    const speedMultiplier = isRunning ? 2.5 : 1.0;
+                    const speed = (isSwimming ? 20.0 : 40.0) * speedMultiplier; 
+                    if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                    if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
+                    const steps = 3;
+                    const stepX = (-velocity.x * delta) / steps;
+                    const stepZ = (-velocity.z * delta) / steps;
+
+                    for (let s = 0; s < steps; s++) {
+                        let wasColliding = checkCollision(controls.getObject().position);
+                        
+                        controls.moveRight(stepX);
+                        if (!wasColliding && checkCollision(controls.getObject().position)) {
+                            controls.moveRight(-stepX); 
+                            velocity.x = 0;
+                        }
+                        
+                        wasColliding = checkCollision(controls.getObject().position);
+                        controls.moveForward(stepZ);
+                        if (!wasColliding && checkCollision(controls.getObject().position)) {
+                            controls.moveForward(-stepZ); 
+                            velocity.z = 0;
+                        }
+                    }
+
+                    controls.getObject().position.y += (velocity.y * delta);
+                    if (controls.getObject().position.y < minHeight) {
+                        velocity.y = 0;
+                        controls.getObject().position.y = minHeight;
+                        canJump = true;
+                    }
+
+                    const currentBx = Math.floor(playerPos.x + 0.5);
+                    const currentBz = Math.floor(playerPos.z + 0.5);
+                    const blockBeneath = blocksMap.get(`${currentBx},${floorY - 1},${currentBz}`);
+                    
+                    if (blockBeneath === TYPES.LAVA && Math.abs(playerPos.y - solidGroundY) < 0.2) {
+                        if (lavaDamageCooldown <= 0) {
+                            applyLavaDamage();
+                            lavaDamageCooldown = 5.0; 
+                        }
+                    }
+                    if (lavaDamageCooldown > 0) {
+                        lavaDamageCooldown -= delta;
+                    }
                 } else {
-                    if (velocity.y < 0) velocity.y -= 90.0 * delta; 
-                    else velocity.y -= 30.0 * delta; 
-                }
+                    direction.z = Number(moveForward) - Number(moveBackward);
+                    direction.x = Number(moveRight) - Number(moveLeft);
+                    direction.normalize();
 
-                direction.z = Number(moveForward) - Number(moveBackward);
-                direction.x = Number(moveRight) - Number(moveLeft);
-                direction.normalize();
-
-                const speedMultiplier = isRunning ? 2.5 : 1.0;
-                const speed = (isSwimming ? 20.0 : 40.0) * speedMultiplier; 
-                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
-
-                const steps = 3;
-                const stepX = (-velocity.x * delta) / steps;
-                const stepZ = (-velocity.z * delta) / steps;
-
-                for (let s = 0; s < steps; s++) {
-                    let wasColliding = checkCollision(controls.getObject().position);
+                    const speed = 150.0;
+                    if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                    if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
                     
-                    controls.moveRight(stepX);
-                    if (!wasColliding && checkCollision(controls.getObject().position)) {
-                        controls.moveRight(-stepX); 
-                        velocity.x = 0;
-                    }
+                    controls.moveRight(-velocity.x * delta);
+                    controls.moveForward(-velocity.z * delta);
                     
-                    wasColliding = checkCollision(controls.getObject().position);
-                    controls.moveForward(stepZ);
-                    if (!wasColliding && checkCollision(controls.getObject().position)) {
-                        controls.moveForward(-stepZ); 
-                        velocity.z = 0;
-                    }
-                }
-
-                controls.getObject().position.y += (velocity.y * delta);
-                if (controls.getObject().position.y < minHeight) {
-                    velocity.y = 0;
-                    controls.getObject().position.y = minHeight;
-                    canJump = true;
-                }
-
-                const currentBx = Math.floor(playerPos.x + 0.5);
-                const currentBz = Math.floor(playerPos.z + 0.5);
-                const blockBeneath = blocksMap.get(`${currentBx},${floorY - 1},${currentBz}`);
-                
-                if (blockBeneath === TYPES.LAVA && Math.abs(playerPos.y - solidGroundY) < 0.2) {
-                    if (lavaDamageCooldown <= 0) {
-                        applyLavaDamage();
-                        lavaDamageCooldown = 5.0; 
-                    }
-                }
-                if (lavaDamageCooldown > 0) {
-                    lavaDamageCooldown -= delta;
+                    controls.getObject().position.y = targetGodAltitude;
                 }
             }
 
