@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -508,6 +508,8 @@
             WOOD: 8, LEAVES: 9, CACTUS: 10, FLOWER: 11, STEM: 12, TORCH: 13, PLANK: 14, GOLD: 15
         };
 
+        const INVISIBLE_BARRIER = 99; 
+
         function createTexture(hex, type) {
             const canvas = document.createElement('canvas');
             canvas.width = 16; canvas.height = 16;
@@ -827,7 +829,6 @@
                 finalizeInit();
                 document.getElementById('loading').style.display = 'none';
                 
-                // Ocultar el aviso legal pasados 5 segundos
                 setTimeout(() => {
                     const disclaimer = document.getElementById('disclaimer');
                     if (disclaimer) {
@@ -850,7 +851,8 @@
             scene.add(dirLight);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(160, 6, 120); 
+            camera.position.set(30, 6, 95); 
+            camera.lookAt(45, 6, 95);
 
             controls = new PointerLockControls(camera, document.body);
 
@@ -1276,6 +1278,16 @@
             blockData[type].push({x, y, z, color: colorHex});
         }
 
+        function fillInvisibleCollisionBox(minX, maxX, minY, maxY, minZ, maxZ) {
+            for(let x=minX; x<=maxX; x++) {
+                for(let y=minY; y<=maxY; y++) {
+                    for(let z=minZ; z<=maxZ; z++) {
+                        blocksMap.set(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`, INVISIBLE_BARRIER);
+                    }
+                }
+            }
+        }
+
         function getSmoothTerrainHeight(x, z, originalHeight) {
             const clearings = [
                 {cx: 175, cz: 100, r: 16, blend: 10, h: 3},   
@@ -1361,7 +1373,7 @@
             const caveCenter = {x: 270, y: 4, z: 120}; 
 
             for(let x=200; x<=400; x++) {
-                for(let z=200; z<=200; z++) {
+                for(let z=0; z<=200; z++) {
                     const dist = Math.sqrt((x-300)**2 + (z-100)**2);
                     if(dist < islandRadius) {
                         let rawHeight = 2;
@@ -1508,9 +1520,14 @@
                 }
             }
 
-            buildMoai(45, getFloorHeight(45, 85, 50), 85);
-            buildMoai(45, getFloorHeight(45, 95, 50), 95);
-            buildMoai(45, getFloorHeight(45, 105, 50), 105);
+            let rotY85 = Math.atan2(85 - 100, 45 - 100) - Math.PI;
+            buildMoai(45, getFloorHeight(45, 85, 50), 85, rotY85);
+
+            let rotY95 = Math.atan2(95 - 100, 45 - 100) - Math.PI;
+            buildMoai(45, getFloorHeight(45, 95, 50), 95, rotY95);
+
+            let rotY105 = Math.atan2(105 - 100, 45 - 100) - Math.PI;
+            buildMoai(45, getFloorHeight(45, 105, 50), 105, rotY105);
 
             buildCampfire(270, 4, 120);
             
@@ -1563,45 +1580,75 @@
             scene.add(volcanoParticles);
         }
 
-        function buildMoai(cx, cy, cz) {
+        function buildMoai(cx, cy, cz, rotY) {
+            const blocks = [];
+            function addM(dx, dy, dz) {
+                blocks.push({x: dx, y: dy, z: dz});
+            }
+            
             for(let y=0; y<=1; y++) {
                 for(let dx=0; dx<=2; dx++) {
-                    for(let dz=-1; dz<=1; dz++) {
-                        addBlock(cx+dx, cy+y, cz+dz, TYPES.STONE);
-                    }
+                    for(let dz=-1; dz<=1; dz++) addM(dx, y, dz);
                 }
             }
             for(let y=2; y<=3; y++) {
                 for(let dx=0; dx<=2; dx++) {
-                    for(let dz=-2; dz<=2; dz++) {
-                        addBlock(cx+dx, cy+y, cz+dz, TYPES.STONE);
-                    }
+                    for(let dz=-2; dz<=2; dz++) addM(dx, y, dz);
                 }
-                for(let dz=-2; dz<=2; dz++) addBlock(cx-1, cy+y, cz+dz, TYPES.STONE);
+                for(let dz=-2; dz<=2; dz++) addM(-1, y, dz);
             }
             for(let dx=0; dx<=2; dx++) {
-                for(let dz=-1; dz<=1; dz++) addBlock(cx+dx, cy+4, cz+dz, TYPES.STONE);
+                for(let dz=-1; dz<=1; dz++) addM(dx, 4, dz);
             }
             for(let y=5; y<=6; y++) {
                 for(let dx=0; dx<=2; dx++) {
-                    for(let dz=-1; dz<=1; dz++) addBlock(cx+dx, cy+y, cz+dz, TYPES.STONE);
+                    for(let dz=-1; dz<=1; dz++) addM(dx, y, dz);
                 }
-                addBlock(cx-1, cy+y, cz, TYPES.STONE);
+                addM(-1, y, 0);
             }
             for(let dx=0; dx<=2; dx++) {
                 for(let dz=-1; dz<=1; dz++) {
                     if (dx === 0 && (dz === -1 || dz === 1)) continue;
-                    addBlock(cx+dx, cy+7, cz+dz, TYPES.STONE);
+                    addM(dx, 7, dz);
                 }
             }
-            addBlock(cx-1, cy+7, cz, TYPES.STONE); 
+            addM(-1, 7, 0); 
             for(let dx=0; dx<=2; dx++) {
-                for(let dz=-1; dz<=1; dz++) addBlock(cx+dx, cy+8, cz+dz, TYPES.STONE);
+                for(let dz=-1; dz<=1; dz++) addM(dx, 8, dz);
             }
-            for(let dz=-1; dz<=1; dz++) addBlock(cx-1, cy+8, cz+dz, TYPES.STONE);
+            for(let dz=-1; dz<=1; dz++) addM(-1, 8, dz);
             for(let y=9; y<=11; y++) {
                 for(let dx=0; dx<=2; dx++) {
-                    for(let dz=-1; dz<=1; dz++) addBlock(cx+dx, cy+y, cz+dz, TYPES.STONE);
+                    for(let dz=-1; dz<=1; dz++) addM(dx, y, dz);
+                }
+            }
+
+            const geo = new THREE.BoxGeometry(1, 1, 1);
+            const imesh = new THREE.InstancedMesh(geo, MATERIALS[TYPES.STONE], blocks.length);
+            const dummy = new THREE.Object3D();
+            const color = new THREE.Color();
+            const hsl = {};
+            
+            for(let i=0; i<blocks.length; i++) {
+                dummy.position.set(blocks[i].x, blocks[i].y, blocks[i].z);
+                dummy.updateMatrix();
+                imesh.setMatrixAt(i, dummy.matrix);
+                
+                color.setHex(0xffffff);
+                color.getHSL(hsl);
+                color.setHSL(hsl.h, hsl.s, hsl.l - Math.random() * 0.05);
+                imesh.setColorAt(i, color);
+            }
+            
+            imesh.position.set(cx, cy, cz);
+            imesh.rotation.y = rotY;
+            scene.add(imesh);
+
+            for (let y = 0; y <= 11; y++) {
+                for (let dx = -1; dx <= 2; dx++) {
+                    for (let dz = -2; dz <= 2; dz++) {
+                        blocksMap.set(`${Math.floor(cx + dx)},${Math.floor(cy + y)},${Math.floor(cz + dz)}`, INVISIBLE_BARRIER);
+                    }
                 }
             }
         }
