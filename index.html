@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -394,8 +394,8 @@
     <div id="blocker">
         <div id="instructions">
             <h1 id="gameTitle" style="font-size: 42px; margin-bottom: 10px; color: #e69138; text-shadow: 2px 2px 5px black;">Craft Islands</h1>
-            <p style="font-size: 18px; line-height: 1.5;">Welcome to the interactive game of the mysterious islands.</p>
-            <p style="font-size: 16px; color: #ccc;">Controls:<br>
+            <p id="mainText" style="font-size: 18px; line-height: 1.5;">Welcome to the interactive game of the mysterious islands.</p>
+            <p id="controlsText" style="font-size: 16px; color: #ccc;">Controls:<br>
             W, A, S, D to move | Click to interact<br>
             Hold R to sprint | Space to jump<br>
             CTRL + S = Screenshot | CTRL + M = Mute</p>
@@ -622,6 +622,7 @@
 
         const raycaster = new THREE.Raycaster();
         const interactables = [];
+        let collectibleHalos = [];
         let coins = 0;
         let activeTestZone = null;
         let activeTestVerbs = [];
@@ -895,6 +896,30 @@
         let rainGain, windGain;
         let isMuted = false;
 
+        window.showBlocker = function(type) {
+            const blocker = document.getElementById('blocker');
+            const title = document.getElementById('gameTitle');
+            const main = document.getElementById('mainText');
+            const controlsText = document.getElementById('controlsText');
+
+            blocker.style.display = 'flex';
+
+            if (type === 'user') {
+                title.style.display = 'block';
+                title.innerText = 'Game Paused';
+                main.innerText = 'Click to continue your adventure.';
+                main.style.fontSize = '18px';
+                main.style.fontWeight = 'normal';
+                controlsText.style.display = 'block';
+            } else if (type === 'technical') {
+                title.style.display = 'none';
+                main.innerText = 'Click to resume the game';
+                main.style.fontSize = '28px';
+                main.style.fontWeight = 'bold';
+                controlsText.style.display = 'none';
+            }
+        };
+
         window.closeStory = function() {
             document.getElementById('storyModal').style.display = 'none';
             isUIOpen = false;
@@ -906,15 +931,17 @@
         window.closeBook = function() {
             document.getElementById('bookModal').style.display = 'none';
             isUIOpen = false;
-            controls.lock();
+            window.showBlocker('technical');
         };
+        
         window.closeTest = function() {
             document.getElementById('testModal').style.display = 'none';
             if (document.getElementById('congratsModal').style.display !== 'flex') {
                 isUIOpen = false;
-                controls.lock();
+                window.showBlocker('technical');
             }
         };
+        
         window.closeCongrats = function() {
             document.getElementById('congratsModal').style.display = 'none';
             if(coins === 4) {
@@ -922,9 +949,10 @@
                 document.exitPointerLock();
             } else {
                 isUIOpen = false;
-                controls.lock();
+                window.showBlocker('technical');
             }
         };
+        
         window.claimIslands = function() {
             const surname = document.getElementById('surnameInput').value.trim();
             if(surname) {
@@ -946,7 +974,7 @@
         window.closeAllItemsModal = function() {
             document.getElementById('allItemsModal').style.display = 'none';
             isUIOpen = false;
-            controls.lock();
+            window.showBlocker('technical');
         };
 
         window.takeScreenshot = function() {
@@ -1081,20 +1109,18 @@
             instructions.addEventListener('click', function (event) { 
                 if (isFirstStart) {
                     isFirstStart = false;
-                    document.getElementById('gameTitle').innerText = "Game Paused";
-                    document.querySelector('#instructions p').innerText = "Click to continue your adventure.";
                     document.getElementById('blocker').style.display = 'none';
                     isUIOpen = true;
                     document.getElementById('storyModal').style.display = 'flex';
                 } else {
-                    controls.lock(); 
+                    controls.lock();
                     if (!audioCtx) initAudio();
                     if (audioCtx.state === 'suspended') audioCtx.resume();
                 }
             });
             controls.addEventListener('lock', function () { blocker.style.display = 'none'; });
             controls.addEventListener('unlock', function () { 
-                if (!isUIOpen) blocker.style.display = 'flex'; 
+                if (!isUIOpen) window.showBlocker('user'); 
             });
             scene.add(controls.getObject());
 
@@ -1148,8 +1174,9 @@
                     let nextIdx = (currentIdx + 1) % tpDestinations.length;
                     let dest = tpDestinations[nextIdx];
                     
-                    let highestY = getFloorHeight(dest.x, dest.z, 50);
-                    controls.getObject().position.set(dest.x, highestY + 3, dest.z);
+                    let rawHighestY = getFloorHeight(dest.x, dest.z, 50);
+                    controls.getObject().position.set(dest.x, (rawHighestY - 0.5) + 1.6, dest.z);
+                    camera.rotation.x = 0;
                     velocity.y = 0;
                     return;
                 }
@@ -1179,8 +1206,9 @@
                     let nextIdx = (currentIdx + 1) % findDestinations.length;
                     let dest = findDestinations[nextIdx];
                     
-                    let highestY = getFloorHeight(dest.x, dest.z, 60);
-                    controls.getObject().position.set(dest.x, highestY + 3, dest.z);
+                    let rawHighestY = getFloorHeight(dest.x, dest.z, 60);
+                    controls.getObject().position.set(dest.x, (rawHighestY - 0.5) + 1.6, dest.z);
+                    camera.rotation.x = 0;
                     velocity.y = 0;
                     return;
                 }
@@ -1314,6 +1342,7 @@
             if (isGodView) {
                 let targetX = controls.getObject().position.x;
                 let targetZ = controls.getObject().position.z;
+                let targetY;
 
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
                 const allMeshes = Object.values(instancedMeshes);
@@ -1322,14 +1351,15 @@
                 if (intersects.length > 0) {
                     targetX = intersects[0].point.x;
                     targetZ = intersects[0].point.z;
+                    targetY = intersects[0].point.y + 1.6;
+                } else {
+                    let rawFloorY = getFloorHeight(targetX, targetZ, 300);
+                    targetY = (rawFloorY - 0.5) + 1.6;
                 }
 
-                let floorY = getFloorHeight(targetX, targetZ, 300);
-                
-                let targetY = floorY + 1.6;
                 const oceanLevel = 2.0;
                 const waterSurfaceY = oceanLevel + 0.2; 
-                if (targetY < waterSurfaceY && floorY < oceanLevel && !isInsideStructure(targetX, targetZ, oceanLevel)) {
+                if (targetY < waterSurfaceY + 1.6 && (targetY - 1.6) < oceanLevel && !isInsideStructure(targetX, targetZ, oceanLevel)) {
                     targetY = waterSurfaceY;
                 }
 
@@ -1469,6 +1499,13 @@
         function createInteractable(geo, mat, x, y, z, userData) {
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.set(x, y, z);
+            
+            mesh.updateMatrixWorld(true);
+            mesh.geometry.computeBoundingBox();
+            const box = new THREE.Box3();
+            box.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
+            userData.box = box;
+            
             mesh.userData = userData;
             scene.add(mesh);
             interactables.push(mesh);
@@ -1500,12 +1537,12 @@
                 baseRot: rotationY,
                 openRot: rotationY + swingAngle,
                 targetRot: rotationY,
-                minX: x + pivotOffsetX - width / 2 - 0.2, 
-                maxX: x + pivotOffsetX + width / 2 + 0.2,
-                minY: y,
-                maxY: y + height,
-                minZ: z + pivotOffsetZ - 0.4,
-                maxZ: z + pivotOffsetZ + 0.4
+                x: x + pivotOffsetX,
+                y: y,
+                z: z + pivotOffsetZ,
+                width: width,
+                height: height,
+                tiltX: tiltX
             };
             zones[zoneId].door = doorObj;
             return doorObj;
@@ -1513,6 +1550,8 @@
 
         function createCollectibleMesh(id, x, y, z) {
             let mesh;
+            let trueGround = y - 0.5;
+
             if (id === 'canteen') {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.8), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
                 
@@ -1550,7 +1589,7 @@
                 mesh.add(strap1);
                 mesh.add(strap2);
                 
-                mesh.position.set(x, y - 0.15, z);
+                mesh.position.set(x, trueGround + 0.35, z);
                 mesh.rotation.x = -Math.PI / 12;
                 mesh.rotation.y = Math.PI / 4;
             } else if (id === 'machete') {
@@ -1561,7 +1600,7 @@
                 blade.position.y = 0.2;
                 mesh.add(handle);
                 mesh.add(blade);
-                mesh.position.set(x, y - 0.46, z);
+                mesh.position.set(x, trueGround + 0.2, z);
                 mesh.rotation.x = Math.PI / 2;
                 mesh.rotation.z = Math.PI / 6;
             } else if (id === 'stick') {
@@ -1570,7 +1609,7 @@
                 stickModel.rotation.x = Math.PI / 8;
                 stickModel.rotation.z = Math.PI / 8;
                 mesh.add(stickModel);
-                mesh.position.set(x, y - 0.70, z);
+                mesh.position.set(x, trueGround + 0.60, z);
             } else if (id === 'lantern') {
                 mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), new THREE.MeshBasicMaterial({transparent: true, opacity: 0}));
                 let base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8), new THREE.MeshLambertMaterial({color: 0x222222}));
@@ -1582,8 +1621,25 @@
                 mesh.add(base);
                 mesh.add(body);
                 mesh.add(top);
-                mesh.position.set(x, y - 0.32, z);
+                mesh.position.set(x, trueGround + 0.175, z);
             }
+
+            let haloGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            let haloMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            let haloMesh = new THREE.Mesh(haloGeo, haloMat);
+            mesh.add(haloMesh);
+
+            let itemLight = new THREE.PointLight(0xffffff, 2.0, 10);
+            mesh.add(itemLight);
+
+            collectibleHalos.push({ halo: haloMesh, light: itemLight });
+
             mesh.userData = { type: 'collectible', id: id };
             scene.add(mesh);
             interactables.push(mesh);
@@ -2227,6 +2283,13 @@
             hutGroup.position.set(cx, cy, cz);
             scene.add(hutGroup);
 
+            fillInvisibleCollisionBox(cx - 6, cx + 6, cy, cy + 10, cz - 6, cz - 5); 
+            fillInvisibleCollisionBox(cx - 6, cx - 5, cy, cy + 10, cz - 5, cz + 5); 
+            fillInvisibleCollisionBox(cx + 5, cx + 6, cy, cy + 10, cz - 5, cz + 5); 
+            fillInvisibleCollisionBox(cx - 6, cx - 2, cy, cy + 10, cz + 5, cz + 6); 
+            fillInvisibleCollisionBox(cx + 2, cx + 6, cy, cy + 10, cz + 5, cz + 6); 
+            fillInvisibleCollisionBox(cx - 5, cx + 5, cy + 8, cy + 9, cz - 5, cz + 5);
+
             createControlledDoor(cx - 2, cy + 0.1, cz + 5.5, 4, 4.8, 2, 0, 0, Math.PI / 1.5, 1);
             
             createInteractable(new THREE.BoxGeometry(1.5, 1.2, 1.0), new THREE.MeshLambertMaterial({color:0x3e2723}), cx+3, cy+0.6, cz-3, {type:'desk', zone:1});
@@ -2455,8 +2518,9 @@
 
         function checkCollision(pos) {
             const r = 0.25; 
-            const waistY = Math.floor(pos.y - 1.2);
-            const headY = Math.floor(pos.y - 0.2);
+            const y1 = Math.round(pos.y - 1.4);
+            const y2 = Math.round(pos.y - 0.8);
+            const y3 = Math.round(pos.y - 0.2);
             
             const isSolid = (x, yLevel, z) => {
                 const bx = Math.floor(x + 0.5);
@@ -2465,24 +2529,52 @@
                 return t && t !== TYPES.WATER && t !== TYPES.FLOWER && t !== TYPES.STEM && t !== TYPES.TORCH;
             };
             
-            if (isSolid(pos.x, waistY, pos.z) || isSolid(pos.x, headY, pos.z)) return true;
-            if (isSolid(pos.x - r, waistY, pos.z - r) || isSolid(pos.x - r, headY, pos.z - r)) return true;
-            if (isSolid(pos.x + r, waistY, pos.z - r) || isSolid(pos.x + r, headY, pos.z - r)) return true;
-            if (isSolid(pos.x - r, waistY, pos.z + r) || isSolid(pos.x - r, headY, pos.z + r)) return true;
-            if (isSolid(pos.x + r, waistY, pos.z + r) || isSolid(pos.x + r, headY, pos.z + r)) return true;
+            const checkPts = (x, z) => isSolid(x, y1, z) || isSolid(x, y2, z) || isSolid(x, y3, z);
+
+            if (checkPts(pos.x, pos.z)) return true;
+            if (checkPts(pos.x - r, pos.z - r)) return true;
+            if (checkPts(pos.x + r, pos.z - r)) return true;
+            if (checkPts(pos.x - r, pos.z + r)) return true;
+            if (checkPts(pos.x + r, pos.z + r)) return true;
 
             const px = pos.x;
             const py = pos.y;
             const pz = pos.z;
 
+            for (let i = 0; i < interactables.length; i++) {
+                let obj = interactables[i];
+                if (obj.userData && obj.userData.type === 'desk' && obj.userData.box) {
+                    let b = obj.userData.box;
+                    if (px + r > b.min.x && px - r < b.max.x &&
+                        py > b.min.y && py - 1.5 < b.max.y &&
+                        pz + r > b.min.z && pz - r < b.max.z) {
+                        return true;
+                    }
+                }
+            }
+
             for (let key in zones) {
                 const zone = zones[key];
                 if (zone.door && Math.abs(zone.door.group.rotation.y - zone.door.baseRot) < 0.1) {
                     const d = zone.door;
-                    if (px + r > d.minX && px - r < d.maxX &&
-                        py > d.minY && py - 1.5 < d.maxY &&
-                        pz + r > d.minZ && pz - r < d.maxZ) {
-                        return true;
+                    let minX = d.x - d.width / 2 - 0.2;
+                    let maxX = d.x + d.width / 2 + 0.2;
+                    let minY = d.y;
+                    let maxY = d.y + d.height + 5.0; 
+
+                    if (px + r > minX && px - r < maxX && py > minY && py - 1.5 < maxY) {
+                        let minZ = d.z - 0.5;
+                        let maxZ = d.z + 0.5;
+                        
+                        if (d.tiltX) {
+                            let topZ = d.z + d.height * Math.tan(d.tiltX);
+                            minZ = Math.min(d.z, topZ) - 0.5;
+                            maxZ = Math.max(d.z, topZ) + 0.5;
+                        }
+                        
+                        if (pz + r > minZ && pz - r < maxZ) {
+                            return true;
+                        }
                     }
                 }
             }
@@ -2494,14 +2586,29 @@
             const bx = Math.floor(x + 0.5);
             const bz = Math.floor(z + 0.5);
             const startY = Math.floor(currentY - 0.5);
+            let highest = 0;
             
             for(let y = startY; y > -5; y--) {
                 const type = blocksMap.get(`${bx},${y},${bz}`);
-                if(type && type !== TYPES.WATER && type !== TYPES.FLOWER && type !== TYPES.STEM && type !== TYPES.TORCH) {
-                    return y + 1;
+                if(type && type !== TYPES.WATER && type !== TYPES.FLOWER && type !== TYPES.STEM && type !== TYPES.TORCH && type !== INVISIBLE_BARRIER) {
+                    highest = y + 1;
+                    break;
                 }
             }
-            return 0; 
+
+            for(let i=0; i<interactables.length; i++) {
+                let obj = interactables[i];
+                if (obj.userData && obj.userData.type === 'desk' && obj.userData.box) {
+                    let b = obj.userData.box;
+                    if (x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z) {
+                        if (b.max.y <= currentY + 0.5 && b.max.y > highest) {
+                            highest = b.max.y;
+                        }
+                    }
+                }
+            }
+            
+            return highest;
         }
 
         function onWindowResize() {
@@ -2768,16 +2875,17 @@
                 updateZones(playerPos, delta);
                 updateRaycast();
 
-                const floorY = getFloorHeight(playerPos.x, playerPos.z, playerPos.y);
+                const rawFloorY = getFloorHeight(playerPos.x, playerPos.z, playerPos.y);
+                const floorTopY = rawFloorY - 0.5;
                 const playerHeight = 1.6;
                 const oceanLevel = 2.0;
                 const waterSurfaceY = oceanLevel + 0.2; 
-                const solidGroundY = floorY + playerHeight;
+                const solidGroundY = floorTopY + playerHeight;
                 
                 let minHeight = solidGroundY;
                 let isSwimming = false;
 
-                if (solidGroundY < waterSurfaceY && floorY < oceanLevel && !isInsideStructure(playerPos.x, playerPos.z, oceanLevel)) {
+                if (solidGroundY < waterSurfaceY && floorTopY < oceanLevel && !isInsideStructure(playerPos.x, playerPos.z, oceanLevel)) {
                     minHeight = waterSurfaceY;
                     isSwimming = true;
                 }
@@ -2873,6 +2981,14 @@
                         }
                     }
 
+                    if (velocity.y > 0) {
+                        let testPos = controls.getObject().position.clone();
+                        testPos.y += (velocity.y * delta) + 0.2;
+                        if (checkCollision(testPos)) {
+                            velocity.y = 0; 
+                        }
+                    }
+
                     controls.getObject().position.y += (velocity.y * delta);
                     if (controls.getObject().position.y < minHeight) {
                         velocity.y = 0;
@@ -2882,7 +2998,7 @@
 
                     const currentBx = Math.floor(playerPos.x + 0.5);
                     const currentBz = Math.floor(playerPos.z + 0.5);
-                    const blockBeneath = blocksMap.get(`${currentBx},${floorY - 1},${currentBz}`);
+                    const blockBeneath = blocksMap.get(`${currentBx},${rawFloorY - 1},${currentBz}`);
                     
                     if (blockBeneath === TYPES.LAVA && Math.abs(playerPos.y - solidGroundY) < 0.2) {
                         if (lavaDamageCooldown <= 0) {
@@ -2910,6 +3026,20 @@
             }
 
             const runTime = time * 0.003;
+
+            const pulseTime = time * 0.002;
+            const pulseScale = 1.0 + Math.sin(pulseTime * 1.5) * 0.2;
+            const pulseOpacity = 0.3 + Math.sin(pulseTime * 1.5) * 0.2;
+            const lightIntensity = 1.5 + Math.sin(pulseTime * 1.5) * 1.0;
+
+            for(let i = 0; i < collectibleHalos.length; i++) {
+                let ch = collectibleHalos[i];
+                if (ch.halo.parent) {
+                    ch.halo.scale.set(pulseScale, pulseScale, pulseScale);
+                    ch.halo.material.opacity = pulseOpacity;
+                    ch.light.intensity = lightIntensity;
+                }
+            }
 
             if (MATERIALS[TYPES.WATER].userData.shader) {
                 MATERIALS[TYPES.WATER].userData.shader.uniforms.uTime.value = runTime;
