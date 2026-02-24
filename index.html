@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -629,6 +629,7 @@
         let isUIOpen = false;
         let isFirstStart = true;
         let hideCardTimeout;
+        let zoneTitleTimeout;
         let collectedItemsCount = 0;
         let gameScore = 0;
         let hasBurnedFirstTime = false;
@@ -1176,8 +1177,15 @@
                     
                     let rawHighestY = getFloorHeight(dest.x, dest.z, 50);
                     controls.getObject().position.set(dest.x, (rawHighestY - 0.5) + 1.6, dest.z);
-                    camera.rotation.x = 0;
-                    velocity.y = 0;
+                    
+                    camera.rotation.set(0, 0, 0);
+                    controls.getObject().rotation.x = 0;
+                    controls.getObject().rotation.z = 0;
+                    velocity.set(0, 0, 0);
+                    
+                    isGodView = false;
+                    isTransitioningToGodView = false;
+                    isTransitioningFromGodView = false;
                     return;
                 }
 
@@ -1208,8 +1216,15 @@
                     
                     let rawHighestY = getFloorHeight(dest.x, dest.z, 60);
                     controls.getObject().position.set(dest.x, (rawHighestY - 0.5) + 1.6, dest.z);
-                    camera.rotation.x = 0;
-                    velocity.y = 0;
+                    
+                    camera.rotation.set(0, 0, 0);
+                    controls.getObject().rotation.x = 0;
+                    controls.getObject().rotation.z = 0;
+                    velocity.set(0, 0, 0);
+                    
+                    isGodView = false;
+                    isTransitioningToGodView = false;
+                    isTransitioningFromGodView = false;
                     return;
                 }
 
@@ -1510,6 +1525,34 @@
             scene.add(mesh);
             interactables.push(mesh);
             return mesh;
+        }
+
+        function createComplexInteractable(group, x, y, z, userData) {
+            group.position.set(x, y, z);
+            scene.add(group);
+            
+            group.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(group);
+            
+            const w = box.max.x - box.min.x;
+            const h = box.max.y - box.min.y;
+            const d = box.max.z - box.min.z;
+            
+            const hitBox = new THREE.Mesh(
+                new THREE.BoxGeometry(w, h, d),
+                new THREE.MeshBasicMaterial({visible: false})
+            );
+            
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            hitBox.position.copy(center);
+            
+            userData.box = box;
+            hitBox.userData = userData;
+            scene.add(hitBox);
+            interactables.push(hitBox);
+            
+            return hitBox;
         }
 
         function createControlledDoor(x, y, z, width, height, pivotOffsetX, pivotOffsetZ, rotationY, swingAngle, zoneId, tiltX = 0) {
@@ -1842,7 +1885,7 @@
             return finalHeight;
         }
 
-        function addFireParticles(x, y, z, count = 60, height = 3.5, spread = 0.8) {
+        function addFireParticles(x, y, z, count = 60, height = 3.5, spread = 0.8, alwaysOn = false) {
             const pGeo = new THREE.BufferGeometry();
             const pPos = [];
             for(let i=0; i<count; i++) {
@@ -1851,7 +1894,7 @@
             pGeo.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
             const pSys = new THREE.Points(pGeo, new THREE.PointsMaterial({color: 0xffaa00, size: 0.25, transparent: true, opacity: 0.0}));
             pSys.position.set(x, y, z);
-            pSys.userData = { height: height, spread: spread };
+            pSys.userData = { height: height, spread: spread, alwaysOn: alwaysOn };
             scene.add(pSys);
             fireParticleSystems.push(pSys);
         }
@@ -2294,7 +2337,17 @@
             
             createInteractable(new THREE.BoxGeometry(1.5, 1.2, 1.0), new THREE.MeshLambertMaterial({color:0x3e2723}), cx+3, cy+0.6, cz-3, {type:'desk', zone:1});
             createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x8b0000}), cx+3, cy+1.3, cz-3, {type:'book', zone:1});
-            createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx-4.8, cy+2.5, cz, {type:'lever', zone:1});
+            
+            const compassGroup = new THREE.Group();
+            const cBase = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.1, 16), new THREE.MeshLambertMaterial({color: 0xff8800}));
+            const cFace = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 16), new THREE.MeshLambertMaterial({color: 0xffffff}));
+            const cNeedle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.7), new THREE.MeshLambertMaterial({color: 0xcc0000}));
+            cBase.rotation.x = Math.PI/2;
+            cFace.rotation.x = Math.PI/2;
+            cNeedle.rotation.x = Math.PI/2;
+            cNeedle.rotation.y = Math.PI/4; 
+            compassGroup.add(cBase, cFace, cNeedle);
+            createComplexInteractable(compassGroup, cx, cy + 2.0, cz - 4.9, {type:'lever', zone:1});
         }
 
         // ZONE 2: Shipwreck (Block 2)
@@ -2384,8 +2437,16 @@
 
             createInteractable(new THREE.BoxGeometry(1.2, 1.4, 2.2), new THREE.MeshLambertMaterial({color:0x5c4033}), cx+2, cy+0.7, cz+8, {type:'desk', zone:2});
             createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x00008b}), cx+2, cy+1.5, cz+8, {type:'book', zone:2});
-            createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx-3.4, cy+2.0, cz+9, {type:'lever', zone:2});
-
+            
+            createInteractable(new THREE.CylinderGeometry(0.25, 0.35, 2.0, 16), new THREE.MeshLambertMaterial({color: 0x3e2723}), cx - 3.4, cy + 1.0, cz + 9, {type:'desk', zone:2});
+            
+            const astroGroup = new THREE.Group();
+            const t1 = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.04, 16, 32), new THREE.MeshLambertMaterial({color: 0xffd700}));
+            const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.04, 16, 32), new THREE.MeshLambertMaterial({color: 0xffd700}));
+            t2.rotation.x = Math.PI/2;
+            const sObj = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), new THREE.MeshLambertMaterial({color: 0x8888ff}));
+            astroGroup.add(t1, t2, sObj);
+            createComplexInteractable(astroGroup, cx - 3.4, cy + 2.4, cz + 9, {type:'lever', zone:2});
         }
 
         // ZONE 3: Hindu Temple (Block 3)
@@ -2473,8 +2534,24 @@
 
             createInteractable(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8), new THREE.MeshLambertMaterial({color:0xffffff}), cx, cy+2.1, cz, {type:'desk', zone:3});
             createInteractable(new THREE.BoxGeometry(0.6, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x006400}), cx, cy+2.8, cz, {type:'book', zone:3});
-            createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx-2, cy+4, cz+2, {type:'lever', zone:3});
+            
+            const colMat = new THREE.MeshLambertMaterial({color: 0xffffff});
+            const vaseMat = new THREE.MeshLambertMaterial({color: 0x1E90FF});
+            
+            createInteractable(new THREE.CylinderGeometry(0.4, 0.4, 2, 16), colMat, cx + 6.1, cy + 2.5, cz, {type:'desk', zone:3});
+            const vaseRightGroup = new THREE.Group();
+            const vaseRight = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), vaseMat);
+            vaseRight.scale.y = 1.5;
+            vaseRightGroup.add(vaseRight);
+            vaseRightGroup.position.set(cx + 6.1, cy + 3.95, cz);
+            scene.add(vaseRightGroup);
 
+            createInteractable(new THREE.CylinderGeometry(0.4, 0.4, 2, 16), colMat, cx - 6.1, cy + 2.5, cz, {type:'desk', zone:3});
+            const vaseLeftGroup = new THREE.Group();
+            const vaseLeft = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), vaseMat);
+            vaseLeft.scale.y = 1.5;
+            vaseLeftGroup.add(vaseLeft);
+            createComplexInteractable(vaseLeftGroup, cx - 6.1, cy + 3.95, cz, {type:'lever', zone:3});
         }
 
         // ZONE 4: Pyramid (Block 4)
@@ -2504,8 +2581,38 @@
 
             createInteractable(new THREE.BoxGeometry(2, 1.2, 1), new THREE.MeshLambertMaterial({color:0xffd700}), cx, cy+0.1, cz+3, {type:'desk', zone:4});
             createInteractable(new THREE.BoxGeometry(0.8, 0.2, 0.6), new THREE.MeshLambertMaterial({color:0x800080}), cx, cy+0.8, cz+3, {type:'book', zone:4});
-            createInteractable(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshLambertMaterial({color:0xaaaaaa}), cx+3, cy+2, cz+1, {type:'lever', zone:4});
-
+            
+            function addPyramidTorch(tx, ty, tz, rotY, isInteractive) {
+                const torchGroup = new THREE.Group();
+                const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6), new THREE.MeshLambertMaterial({color: 0x5c4033}));
+                stick.rotation.x = Math.PI / 4;
+                const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.2), new THREE.MeshLambertMaterial({color: 0x333333}));
+                bracket.position.z = -0.15;
+                torchGroup.add(stick, bracket);
+                
+                torchGroup.rotation.y = rotY;
+                
+                if (isInteractive) {
+                    createComplexInteractable(torchGroup, tx, ty, tz, {type:'lever', zone:4});
+                } else {
+                    torchGroup.position.set(tx, ty, tz);
+                    scene.add(torchGroup);
+                }
+                
+                const fX = tx + Math.sin(rotY) * 0.2;
+                const fZ = tz + Math.cos(rotY) * 0.2;
+                const fY = ty + 0.3;
+                
+                const fLight = new THREE.PointLight(0xffaa00, 0.0, 20);
+                fLight.position.set(fX, fY, fZ);
+                scene.add(fLight);
+                dynamicLights.push({light: fLight, maxIntensity: 2.5, alwaysOn: true});
+                addFireParticles(fX, fY, fZ, 15, 1.0, 0.3, true);
+            }
+            
+            addPyramidTorch(cx - 11.5, cy + 3, cz, Math.PI/2, false);
+            addPyramidTorch(cx, cy + 3, cz - 11.5, 0, false);
+            addPyramidTorch(cx + 11.5, cy + 3, cz, -Math.PI/2, true);
         }
 
         function isInsideStructure(x, z, y) {
@@ -2685,7 +2792,8 @@
 
             let targetLight = isNight ? 1.0 : 0.0;
             for (let dl of dynamicLights) {
-                dl.light.intensity += (dl.maxIntensity * targetLight - dl.light.intensity) * delta * 2.0;
+                let currentTarget = (isNight || dl.alwaysOn) ? 1.0 : 0.0;
+                dl.light.intensity += (dl.maxIntensity * currentTarget - dl.light.intensity) * delta * 2.0;
             }
 
             if (audioCtx) {
@@ -2783,9 +2891,6 @@
         }
 
         function updateZones(playerPos, delta) {
-            let anyInside = false;
-            let currentTitle = "";
-
             for(let key in zones) {
                 const zone = zones[key];
                 const dist = Math.hypot(playerPos.x - zone.center.x, playerPos.z - zone.center.z);
@@ -2796,13 +2901,20 @@
                         zone.door.targetRot = zone.door.baseRot; 
                         zone.locked = true;
                     }
+                    
+                    const titleEl = document.getElementById('zoneTitle');
+                    titleEl.innerText = zone.titleText;
+                    titleEl.classList.add('show');
+                    
+                    clearTimeout(zoneTitleTimeout);
+                    zoneTitleTimeout = setTimeout(() => {
+                        titleEl.classList.remove('show');
+                    }, 5000);
+                    
                 } else if (dist > zone.radius && zone.inside) {
                     zone.inside = false;
-                }
-
-                if (zone.inside) {
-                    anyInside = true;
-                    currentTitle = zone.titleText;
+                    const titleEl = document.getElementById('zoneTitle');
+                    titleEl.classList.remove('show');
                 }
 
                 if (dist > zone.radius + 15 && zone.door && zone.door.targetRot !== zone.door.baseRot) {
@@ -2813,14 +2925,6 @@
                     zone.door.group.rotation.y += (zone.door.targetRot - zone.door.group.rotation.y) * 5.0 * delta;
                 }
             }
-
-            const titleEl = document.getElementById('zoneTitle');
-            if (anyInside) {
-                if (titleEl.innerText !== currentTitle) titleEl.innerText = currentTitle;
-                titleEl.classList.add('show');
-            } else {
-                titleEl.classList.remove('show');
-            }
         }
 
         function updateRaycast() {
@@ -2828,12 +2932,14 @@
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             const intersects = raycaster.intersectObjects(interactables, false);
             
+            let foundValid = false;
+            
             if (intersects.length > 0 && intersects[0].distance < 6) {
                 const obj = intersects[0].object;
-                textEl.style.display = 'block';
+                const data = obj.userData;
                 
-                if(obj.userData.type === 'door') {
-                    const zone = zones[obj.userData.zone];
+                if(data.type === 'door') {
+                    const zone = zones[data.zone];
                     if(zone.locked) {
                         textEl.innerText = "Locked - Pass the Test to Open";
                         textEl.style.color = "red";
@@ -2841,16 +2947,24 @@
                         textEl.innerText = "Click to open/close";
                         textEl.style.color = "white";
                     }
-                } else if (obj.userData.type === 'book') {
+                    foundValid = true;
+                } else if (data.type === 'book') {
                     textEl.innerText = "Click to read Verbs";
                     textEl.style.color = "yellow";
-                } else if (obj.userData.type === 'lever') {
+                    foundValid = true;
+                } else if (data.type === 'lever') {
                     textEl.innerText = "Click to take Test";
                     textEl.style.color = "orange";
-                } else if (obj.userData.type === 'collectible') {
+                    foundValid = true;
+                } else if (data.type === 'collectible') {
                     textEl.innerText = "Click to collect object";
                     textEl.style.color = "cyan";
+                    foundValid = true;
                 }
+            } 
+            
+            if (foundValid) {
+                textEl.style.display = 'block';
             } else {
                 textEl.style.display = 'none';
             }
@@ -2915,13 +3029,13 @@
                     if (t >= 1.0) {
                         isTransitioningFromGodView = false;
                         controls.getObject().position.copy(savedPos);
-                        camera.rotation.x = savedPitch;
-                        controls.getObject().rotation.y = savedYaw;
+                        camera.rotation.set(savedPitch, 0, 0);
+                        controls.getObject().rotation.set(0, savedYaw, 0);
                     } else {
                         let ease = t * t * (3 - 2 * t);
                         controls.getObject().position.lerpVectors(startTransitionPos, savedPos, ease);
-                        camera.rotation.x = startTransitionPitch + (savedPitch - startTransitionPitch) * ease;
-                        controls.getObject().rotation.y = startTransitionYaw + (savedYaw - startTransitionYaw) * ease;
+                        camera.rotation.set(startTransitionPitch + (savedPitch - startTransitionPitch) * ease, 0, 0);
+                        controls.getObject().rotation.set(0, startTransitionYaw + (savedYaw - startTransitionYaw) * ease, 0);
                     }
                 } else if (!isGodView) {
                     if (isSwimming && !wasSwimming && velocity.y < -10) createSplash(playerPos.x, oceanLevel, playerPos.z, 40, 1.5); 
@@ -3047,7 +3161,7 @@
 
             let isNightLocal = timeOfDay >= 240;
             for (let pSys of fireParticleSystems) {
-                const targetOp = isNightLocal ? 0.9 : 0.0;
+                const targetOp = (isNightLocal || pSys.userData.alwaysOn) ? 0.9 : 0.0;
                 pSys.material.opacity += (targetOp - pSys.material.opacity) * delta * 2.0;
 
                 if (pSys.material.opacity > 0.01) {
